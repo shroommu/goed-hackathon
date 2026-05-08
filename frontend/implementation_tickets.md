@@ -10,7 +10,7 @@ Acceptance Criteria:
 2. Shared color, type, spacing tokens are implemented.
 3. Accessibility baseline is configured.
 
-### FE-002 Landing page and mode selection
+### FE-002 Landing page and mode selection [COMPLETED]
 Estimate: 0.5 day
 Dependencies: FE-001
 Acceptance Criteria:

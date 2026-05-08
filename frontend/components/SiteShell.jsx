@@ -20,9 +20,10 @@ import Link from "next/link";
 import { useState } from "react";
 
 const navLinks = [
+  { href: "/navigator", label: "Founder Navigator" },
+  { href: "/map", label: "Startup Map" },
   { href: "#how-it-works", label: "How it works" },
-  { href: "#why-goed", label: "Why GOED" },
-  { href: "#get-started", label: "Get started" }
+  { href: "#get-started", label: "Choose mode" }
 ];
 
 export default function SiteShell({ children }) {
