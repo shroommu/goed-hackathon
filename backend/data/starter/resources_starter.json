@@ -1,0 +1,30 @@
+[
+    {
+        "name": "Silicon Slopes Community",
+        "short_description": "Utah startup ecosystem events, networking, and community resources.",
+        "official_url": "https://siliconslopes.com",
+        "category": "Community",
+        "stage": "pre-seed",
+        "location": "Utah",
+        "objective": "networking",
+        "tags": [
+            "community",
+            "events",
+            "founders"
+        ]
+    },
+    {
+        "name": "SBA Utah District Office",
+        "short_description": "Federal small business guidance, counseling, and funding education.",
+        "official_url": "https://www.sba.gov/district/utah",
+        "category": "Funding",
+        "stage": "seed",
+        "location": "Utah",
+        "objective": "capital",
+        "tags": [
+            "funding",
+            "mentorship",
+            "small-business"
+        ]
+    }
+]

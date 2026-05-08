@@ -4,9 +4,15 @@ from pathlib import Path
 
 import click
 from flask import Flask
+from sqlalchemy import func
 
 from app.extensions import db
-from app.models import Company, CompanyMedia, Resource, Tag
+from app.models import Company, Resource
+
+
+def _next_resource_id() -> int:
+    max_id = db.session.query(func.max(Resource.id)).scalar()
+    return int(max_id or 0) + 1
 
 
 def _parse_rows(file_path: Path) -> list[dict]:
@@ -30,72 +36,83 @@ def _parse_list_field(value: str | list | None, separator: str = ";") -> list[st
         return [str(item).strip() for item in value if str(item).strip()]
     if not isinstance(value, str):
         return []
+    # Support both semicolon and comma delimited values from CSV exports.
+    if ";" not in value and "," in value:
+        separator = ","
     return [item.strip() for item in value.split(separator) if item.strip()]
 
 
 def _upsert_resource(row: dict) -> Resource:
-    name = (row.get("name") or "").strip()
-    if not name:
-        raise click.ClickException("Resource row missing required 'name'")
+    title = (row.get("name") or row.get("title") or "").strip()
+    if not title:
+        raise click.ClickException("Resource row missing required 'name' or 'title'")
 
-    resource = Resource.query.filter_by(name=name).one_or_none()
+    resource = Resource.query.filter_by(title=title).one_or_none()
     if resource is None:
-        resource = Resource(name=name)
+        resource = Resource(id=_next_resource_id(), title=title)
         db.session.add(resource)
 
-    resource.short_description = (row.get("short_description") or "").strip()
-    resource.official_url = (row.get("official_url") or "").strip()
-    resource.category = (row.get("category") or "General").strip()
-    resource.stage = row.get("stage") or None
-    resource.location = row.get("location") or None
-    resource.objective = row.get("objective") or None
-    resource.is_archived = str(row.get("is_archived", "false")).lower() == "true"
+    resource.description = (
+        row.get("short_description")
+        or row.get("description")
+        or resource.description
+        or ""
+    ).strip()
+    resource.link = (row.get("official_url") or row.get("link") or "").strip() or None
+    resource.email = (row.get("email") or "").strip() or None
 
-    tag_names = _parse_list_field(row.get("tags"))
-    resource.tags = []
-    for tag_name in tag_names:
-        tag = Tag.query.filter_by(name=tag_name).one_or_none()
-        if tag is None:
-            tag = Tag(name=tag_name)
-            db.session.add(tag)
-        resource.tags.append(tag)
+    communities = _parse_list_field(row.get("communities") or row.get("tags"))
+    industries = _parse_list_field(row.get("industries") or row.get("category"))
+    locations = _parse_list_field(row.get("locations") or row.get("location"))
+    topics = _parse_list_field(
+        row.get("topics") or row.get("objective") or row.get("tags")
+    )
+
+    resource.communities = "; ".join(communities) or None
+    resource.industries = "; ".join(industries) or None
+    resource.locations = "; ".join(locations) or None
+    resource.topics = "; ".join(topics) or None
 
     return resource
 
 
 def _upsert_company(row: dict) -> Company:
-    name = (row.get("name") or "").strip()
-    if not name:
-        raise click.ClickException("Company row missing required 'name'")
+    startup_name = (row.get("name") or row.get("startup_name") or "").strip()
+    if not startup_name:
+        raise click.ClickException(
+            "Company row missing required 'name' or 'startup_name'"
+        )
 
-    company = Company.query.filter_by(name=name).one_or_none()
+    company = Company.query.filter_by(startup_name=startup_name).one_or_none()
     if company is None:
-        company = Company(name=name)
+        company = Company(startup_name=startup_name)
         db.session.add(company)
 
+    company.display_type = (row.get("display_type") or "startup").strip() or None
+    company.linkedin = (
+        row.get("linkedin_url") or row.get("linkedin") or ""
+    ).strip() or None
     company.website = (row.get("website") or "").strip()
-    company.employee_count = (
-        int(row["employee_count"]) if row.get("employee_count") else None
+    company.employees = (
+        str(row.get("employee_count") or row.get("employees") or "").strip() or None
     )
     company.sector = (row.get("sector") or "Unknown").strip()
     company.stage = row.get("stage") or None
-    company.year_founded = int(row["year_founded"]) if row.get("year_founded") else None
-    company.linkedin_url = row.get("linkedin_url") or None
     company.description = (row.get("description") or "").strip()
-    company.address = (row.get("address") or "").strip()
-    company.city = row.get("city") or None
-    company.county = row.get("county") or None
-    company.state = row.get("state") or "UT"
-    company.postal_code = row.get("postal_code") or None
-    company.hiring_status = row.get("hiring_status") or "unknown"
+
+    full_address = (row.get("full_address") or "").strip()
+    if not full_address:
+        address_parts = [
+            (row.get("address") or "").strip(),
+            (row.get("city") or "").strip(),
+            (row.get("state") or "").strip(),
+            (row.get("postal_code") or "").strip(),
+        ]
+        full_address = ", ".join([part for part in address_parts if part])
+    company.full_address = full_address or None
 
     company.latitude = float(row["latitude"]) if row.get("latitude") else None
     company.longitude = float(row["longitude"]) if row.get("longitude") else None
-
-    job_postings = row.get("job_postings", [])
-    if isinstance(job_postings, str):
-        job_postings = _parse_list_field(job_postings)
-    company.job_postings = job_postings
 
     return company
 
@@ -136,18 +153,7 @@ def register_seed_command(app: Flask) -> None:
             created_or_updated_resources += 1
 
         for row in companies_rows:
-            company = _upsert_company(row)
-            gallery_items = _parse_list_field(row.get("photo_gallery"))
-            if gallery_items:
-                company.media.clear()
-                for idx, media_url in enumerate(gallery_items):
-                    company.media.append(
-                        CompanyMedia(
-                            media_url=media_url,
-                            media_type="photo",
-                            sort_order=idx,
-                        )
-                    )
+            _upsert_company(row)
             created_or_updated_companies += 1
 
         db.session.commit()

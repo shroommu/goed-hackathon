@@ -10,7 +10,7 @@ Acceptance Criteria:
 2. Health endpoint returns status and build version.
 3. Environment config supports local and deployed environments.
 
-### BE-002 Core schema design for resources, companies, and profiles
+### BE-002 Core schema design for resources, companies, and profiles [COMPLETED]
 Estimate: 1 day
 Dependencies: BE-001
 Acceptance Criteria:

@@ -7,7 +7,9 @@ function pushToStorage(eventPayload) {
   }
 
   try {
-    const existing = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]");
+    const existing = JSON.parse(
+      window.localStorage.getItem(STORAGE_KEY) || "[]",
+    );
     existing.push(eventPayload);
     const recentEvents = existing.slice(-MAX_STORED_EVENTS);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(recentEvents));
@@ -30,7 +32,7 @@ function pushToDataLayer(eventPayload) {
       cta_id: eventPayload.ctaId,
       mode: eventPayload.mode,
       destination: eventPayload.destination,
-      page_path: eventPayload.path
+      page_path: eventPayload.path,
     });
   }
 }
@@ -43,7 +45,10 @@ function sendBeacon(eventPayload) {
   const body = JSON.stringify(eventPayload);
 
   if (typeof window.navigator?.sendBeacon === "function") {
-    window.navigator.sendBeacon("/api/analytics", new Blob([body], { type: "application/json" }));
+    window.navigator.sendBeacon(
+      "/api/analytics",
+      new Blob([body], { type: "application/json" }),
+    );
     return;
   }
 
@@ -51,7 +56,7 @@ function sendBeacon(eventPayload) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body,
-    keepalive: true
+    keepalive: true,
   }).catch(() => {
     // Non-blocking tracking fallback.
   });
@@ -68,7 +73,7 @@ export function trackLandingCta({ ctaId, mode, destination }) {
     mode,
     destination,
     timestamp: new Date().toISOString(),
-    path: window.location.pathname
+    path: window.location.pathname,
   };
 
   pushToStorage(payload);
