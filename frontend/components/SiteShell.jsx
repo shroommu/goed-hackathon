@@ -1,5 +1,21 @@
 "use client";
 
+import MenuIcon from "@mui/icons-material/Menu";
+import {
+  AppBar,
+  Box,
+  Container,
+  Drawer,
+  IconButton,
+  Link as MuiLink,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Toolbar,
+  Typography,
+  Button
+} from "@mui/material";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -18,48 +34,104 @@ export default function SiteShell({ children }) {
         Skip to main content
       </a>
 
-      <header className="site-header">
-        <div className="site-header-inner">
-          <Link className="brand" href="/" aria-label="GOED home">
-            <span className="brand-mark" aria-hidden="true">
-              G
-            </span>
-            <span className="brand-text">GOED Founders</span>
-          </Link>
+      <AppBar
+        position="sticky"
+        color="transparent"
+        elevation={0}
+        sx={{
+          borderBottom: "1px solid #d7d2c7",
+          backdropFilter: "blur(8px)",
+          backgroundColor: "rgb(248 246 241 / 92%)"
+        }}
+      >
+        <Container maxWidth="lg">
+          <Toolbar disableGutters sx={{ minHeight: 72 }}>
+            <MuiLink
+              component={Link}
+              href="/"
+              underline="none"
+              aria-label="GOED home"
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 1.25,
+                color: "text.primary",
+                mr: 2
+              }}
+            >
+              <Box
+                aria-hidden="true"
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "999px",
+                  backgroundColor: "primary.main",
+                  color: "background.default",
+                  display: "grid",
+                  placeItems: "center",
+                  fontFamily: "var(--font-heading)",
+                  fontWeight: 700
+                }}
+              >
+                G
+              </Box>
+              <Typography fontWeight={700} letterSpacing="0.02em">
+                GOED Founders
+              </Typography>
+            </MuiLink>
 
-          <button
-            type="button"
-            className="mobile-menu-toggle"
-            aria-controls="primary-navigation"
-            aria-expanded={isMobileMenuOpen}
-            onClick={() => setIsMobileMenuOpen((current) => !current)}
-          >
-            Menu
-          </button>
-
-          <nav
-            id="primary-navigation"
-            className={`site-nav ${isMobileMenuOpen ? "site-nav-open" : ""}`}
-            aria-label="Primary"
-          >
-            <ul>
+            <Box sx={{ display: { xs: "none", md: "flex" }, gap: 1, ml: "auto" }}>
               {navLinks.map((link) => (
-                <li key={link.href}>
-                  <a href={link.href}>{link.label}</a>
-                </li>
+                <Button key={link.href} component="a" href={link.href} color="inherit" sx={{ fontWeight: 600 }}>
+                  {link.label}
+                </Button>
               ))}
-            </ul>
-          </nav>
-        </div>
-      </header>
+            </Box>
 
-      <main id="main-content" tabIndex={-1}>
-        {children}
-      </main>
+            <IconButton
+              aria-label="Open menu"
+              aria-controls="primary-navigation"
+              aria-expanded={isMobileMenuOpen}
+              onClick={() => setIsMobileMenuOpen(true)}
+              sx={{ ml: "auto", display: { xs: "inline-flex", md: "none" } }}
+            >
+              <MenuIcon />
+            </IconButton>
+          </Toolbar>
+        </Container>
+      </AppBar>
 
-      <footer className="site-footer">
-        <p>Built for Utah startup discovery and founder acceleration.</p>
-      </footer>
+      <Drawer
+        id="primary-navigation"
+        anchor="right"
+        open={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        sx={{ display: { xs: "block", md: "none" } }}
+      >
+        <Box sx={{ width: 280, pt: 2 }} role="presentation">
+          <List>
+            {navLinks.map((link) => (
+              <ListItem key={link.href} disablePadding>
+                <ListItemButton component="a" href={link.href} onClick={() => setIsMobileMenuOpen(false)}>
+                  <ListItemText primary={link.label} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      </Drawer>
+
+      <Box component="main" id="main-content" tabIndex={-1}>
+        <Container maxWidth="lg" sx={{ py: { xs: 6, md: 8 } }}>
+          {children}
+        </Container>
+      </Box>
+
+      <Box component="footer" sx={{ borderTop: "1px solid #d7d2c7" }}>
+        <Container maxWidth="lg" sx={{ py: 3, color: "text.secondary", fontSize: "0.9rem" }}>
+          <Typography variant="body2">Built for Utah startup discovery and founder acceleration.</Typography>
+        </Container>
+      </Box>
     </>
   );
 }

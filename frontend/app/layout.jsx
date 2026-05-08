@@ -1,5 +1,6 @@
 import { Fraunces, Public_Sans } from "next/font/google";
 import "./globals.css";
+import AppThemeProvider from "@/components/AppThemeProvider";
 
 const headingFont = Fraunces({
   subsets: ["latin"],
@@ -21,7 +22,9 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${headingFont.variable} ${bodyFont.variable}`}>
-      <body>{children}</body>
+      <body>
+        <AppThemeProvider>{children}</AppThemeProvider>
+      </body>
     </html>
   );
 }
