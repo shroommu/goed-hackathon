@@ -2,7 +2,7 @@
 
 ## P0 Core
 
-### FE-001 Frontend app bootstrap and design system foundation
+### FE-001 Frontend app bootstrap and design system foundation [COMPLETED]
 Estimate: 0.5 day
 Dependencies: None
 Acceptance Criteria:
