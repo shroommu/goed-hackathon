@@ -5,6 +5,11 @@ This backend implements BE-001 with:
 - Environment-based configuration
 - Health endpoint with status and build version
 
+This backend now includes BE-002 foundations with:
+- Core relational schema for resources, companies, profiles, recommendations, claims, verification events, and media
+- Postgres/Supabase migration SQL
+- Seed CLI command for starter data packs
+
 ## Requirements
 
 - Python 3.11+
@@ -18,6 +23,13 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
+Set your Supabase Postgres URL in `.env`:
+
+```bash
+DATABASE_URL=postgresql://postgres.<project-ref>:<password>@<host>:5432/postgres
+DB_SSLMODE=require
+```
+
 ## Run locally (development)
 
 ```bash
@@ -29,6 +41,30 @@ Health check:
 
 ```bash
 curl http://localhost:5000/health
+```
+
+## Apply BE-002 Schema Migration
+
+Run the migration SQL directly against your Supabase database:
+
+```bash
+psql "$DATABASE_URL" -f db/migrations/0001_be002_core_schema.sql
+```
+
+## Seed Starter Data Packs
+
+Starter files are in `data/starter/` and can be loaded with:
+
+```bash
+flask --app wsgi:app seed-starter-data
+```
+
+You can also provide custom paths (JSON or CSV):
+
+```bash
+flask --app wsgi:app seed-starter-data \
+  --resources data/starter/resources_starter.json \
+  --companies data/starter/companies_starter.json
 ```
 
 ## Run in production mode
@@ -46,6 +82,8 @@ gunicorn --bind 0.0.0.0:${PORT} wsgi:app
 - `BUILD_VERSION`: build identifier returned by `/health` (default: `dev`)
 - `HOST`: bind host for local run (default: `0.0.0.0`)
 - `PORT`: bind port (default: `5000` local)
+- `DATABASE_URL`: SQLAlchemy database URL (Supabase/Postgres)
+- `DB_SSLMODE`: SSL mode for Postgres connections (recommended: `require`)
 
 ## Endpoint
 
