@@ -2,7 +2,7 @@
 
 ## P0 Core
 
-### BE-001 Project bootstrap and environment setup
+### BE-001 Project bootstrap and environment setup [COMPLETED]
 Estimate: 0.5 day
 Dependencies: None
 Acceptance Criteria:
