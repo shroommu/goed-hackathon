@@ -126,10 +126,14 @@ export default function LeafletClusterMap({
                 position={[company.latitude, company.longitude]}
                 icon={companyIcons[company.id]}
                 eventHandlers={{
-                  click: () => onSelectCompany(company.id)
+                  click: (e) => {
+                    onSelectCompany(company.id);
+                    // Prevent map from zooming or panning when marker is clicked
+                    e.target._map.closePopup();
+                  }
                 }}
               >
-                <Popup>
+                <Popup autoPan={false}>
                   <strong>{company.startup_name || "Unnamed company"}</strong>
                   <br />
                   {company.sector || "Unknown sector"}
