@@ -18,13 +18,13 @@ Acceptance Criteria:
 2. Required company fields are represented.
 3. Seed script can load starter data packs.
 
-### BE-003 Resource data ingestion pipeline
+### BE-003 Resource data ingestion pipeline [COMPLETED]
 Estimate: 1 day
 Dependencies: BE-002
 Acceptance Criteria:
 1. Import command ingests spreadsheet export reliably.
 2. Validation reports row-level errors without failing whole import.
-3. Imported resources are queryable by tags, stage, and location.
+3. Imported resources are queryable by Communities, Industries, Locations, and Topics.
 
 ### BE-004 Company data ingestion pipeline
 Estimate: 1 day
@@ -50,13 +50,14 @@ Acceptance Criteria:
 2. Pagination and filtering are supported.
 3. Error responses are consistent and documented.
 
-### BE-007 Company map API endpoints
-Estimate: 1.5 days
+### BE-007 Company map and filtered mindmap API endpoints
+Estimate: 2 days
 Dependencies: BE-004
 Acceptance Criteria:
 1. Filters support sector, size, stage, hiring status, and location.
-2. Map listing endpoint returns data suitable for clustered rendering.
-3. Company details include all required profile fields.
+2. Listing endpoint returns deterministic paginated data suitable for both clustered map rendering and Sector -> Stage -> Company mindmap rendering.
+3. Filter validation and error responses are consistent for invalid values, invalid paging, and empty results.
+4. Company details include all required profile fields.
 
 ### BE-008 Self-service listing and claim workflow
 Estimate: 2 days
@@ -81,6 +82,33 @@ Acceptance Criteria:
 1. Admin can create, edit, archive resources.
 2. Admin can edit company metadata and status.
 3. Changes are reflected immediately in public queries.
+
+### BE-014 Conversational resource orchestration API
+Estimate: 1.5 days
+Dependencies: BE-006
+Acceptance Criteria:
+1. `POST /navigator/chat/message` accepts user message plus optional session/context and returns assistant text, derived context, and recommendations.
+2. Recommendations are sourced only from existing resource records and include id, rationale, and official URL.
+3. Follow-up question logic asks for missing high-value fields (stage, objective, location) before broad fallback recommendations.
+4. Response schema and error handling are consistent with BE-006 contracts.
+
+### BE-015 Chat session persistence and telemetry
+Estimate: 1 day
+Dependencies: BE-014
+Acceptance Criteria:
+1. Conversation sessions and message history are persisted with retrievable transcript snapshots.
+2. Recommendation events are stored with rank and score for auditing/evaluation.
+3. Session restore endpoint supports frontend refresh and resume use cases.
+4. Structured telemetry includes session id, latency, and recommendation count.
+
+### BE-016 Retrieval-constrained prompt and safety validator
+Estimate: 1 day
+Dependencies: BE-014
+Acceptance Criteria:
+1. LLM prompt context is restricted to candidate resources returned by deterministic retrieval.
+2. Post-generation validation blocks resources not present in the candidate set.
+3. URL and resource id validation prevent fabricated links or unknown programs in responses.
+4. Timeout/fallback path returns deterministic recommendations if LLM step fails.
 
 ## P1 Hardening
 
@@ -107,10 +135,12 @@ Acceptance Criteria:
 1. Critical flows emit structured logs.
 2. Claim and verification actions are auditable.
 3. Basic error-rate and latency metrics are exposed.
+4. Company listing flow logs include filter dimensions and response-shape telemetry for map and mindmap usage.
 
 ## Backend Build Order
 
-1. BE-001 to BE-007.
+1. BE-001 to BE-007, with BE-007 providing a shared contract for map and filtered mindmap views.
 2. BE-008 and BE-009.
 3. BE-010.
-4. BE-011 to BE-013.
+4. BE-014 to BE-016.
+5. BE-011 to BE-013.
