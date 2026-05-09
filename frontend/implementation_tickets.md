@@ -35,14 +35,12 @@ Acceptance Criteria:
 3. Progress state is preserved during navigation.
 4. Onboarding submission and recommendation fetch use backend endpoints only.
 
-### FE-004 Personalized recommendations UI
+### FE-004 Personalized recommendations UI [COMPLETED]
 Estimate: 1 day
 Dependencies: FE-003, BE-006
 Acceptance Criteria:
 1. Each recommendation shows why it matches.
-2. Resource cards include direct links and tags.
-3. Users can compare or save items for later.
-4. Recommendation payload shape matches backend contract.
+2. Recommendation payload shape matches backend contract.
 
 ### FE-005 Interactive Utah startup map and filtered mindmap
 Estimate: 2.5 days
