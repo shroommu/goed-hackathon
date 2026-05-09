@@ -64,11 +64,10 @@ export default function HomePage() {
             <Button
               component={Link}
               href="/map?entry=landing&mode=investor"
-              variant="outlined"
+              variant="contained"
               color="primary"
               size="large"
               fullWidth
-              sx={{ backgroundColor: "#ede7d8", borderColor: "#d7d2c7" }}
             >
               Explore map flow
             </Button>
