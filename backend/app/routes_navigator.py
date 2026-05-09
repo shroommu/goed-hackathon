@@ -267,17 +267,19 @@ Remember: Only recommend resources from this candidate list. Include the exact r
             content = content.split("```")[1].split("```")[0].strip()
 
         parsed_response = json.loads(content)
-        
+
         # Validate required fields
         if not isinstance(parsed_response, dict):
             raise ValueError("LLM response must be a JSON object")
         if "assistant_message" not in parsed_response:
-            parsed_response["assistant_message"] = "Here are some resources that might help you:"
+            parsed_response["assistant_message"] = (
+                "Here are some resources that might help you:"
+            )
         if "derived_context" not in parsed_response:
             parsed_response["derived_context"] = context
         if "recommendations" not in parsed_response:
             parsed_response["recommendations"] = []
-            
+
         return parsed_response
 
     except json.JSONDecodeError as e:
