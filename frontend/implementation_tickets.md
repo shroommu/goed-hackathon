@@ -53,7 +53,7 @@ Acceptance Criteria:
 5. Mobile behavior uses simplified hierarchy plus drill-down to prevent dense unreadable layouts.
 6. Map and mindmap data are sourced from backend listing/detail endpoints.
 
-### FE-006 Company profile page
+### FE-006 Company profile page [COMPLETED]
 Estimate: 1 day
 Dependencies: FE-005
 Acceptance Criteria:

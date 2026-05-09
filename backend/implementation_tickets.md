@@ -145,6 +145,46 @@ Acceptance Criteria:
 2. Claim and admin actions require authenticated roles.
 3. Unauthorized actions return correct status codes.
 
+Implementation Defaults (Interviewed):
+1. Public endpoints (no auth required): resource read APIs, company read APIs, health/version endpoints.
+2. All write endpoints are protected — no public writes.
+3. Role model: anonymous | user | admin.
+4. Admin role source: JWT `app_metadata.role = "admin"` (Supabase token).
+5. Ownership resolution: via approved claim record whose `user_id` matches the authenticated user's JWT subject.
+6. Ownership edit rule: owner or admin only; other authenticated users are forbidden.
+7. Auth failure status codes: 401 when no valid JWT is present; 403 when authenticated but not authorized.
+8. Error body contract: use existing BE-006 error envelope for all auth failure responses.
+9. Auth source: verify Supabase JWT on the backend for every protected request.
+10. Rollout: enabled immediately in all environments — no feature flag.
+
+Audit Events to Log:
+1. 401 responses — include endpoint and action.
+2. 403 responses — include endpoint, action, and user id.
+3. Token verification failures — include failure reason.
+4. Successful admin mutations — include actor user id and target record.
+5. Successful owner edits — include actor user id and company id.
+
+Implementation Checklist:
+- [ ] `auth.py` decorator/helper: verify Supabase JWT and extract `sub`, `app_metadata.role`.
+- [ ] `require_auth` decorator: returns 401 with BE-006 envelope if no valid token.
+- [ ] `require_role("admin")` decorator: returns 403 if authenticated user lacks admin role.
+- [ ] `require_owner_or_admin(company_id)` helper: looks up approved claim by `user_id = sub`; falls back to admin role check; returns 403 otherwise.
+- [ ] Apply `require_auth` + `require_role("admin")` to all admin routes (`routes_admin.py`).
+- [ ] Apply `require_auth` to submit-listing and claim routes (`routes_companies.py`).
+- [ ] Apply `require_owner_or_admin` to company edit routes.
+- [ ] Apply `require_auth` + `require_role("admin")` to verification approval/rejection endpoints.
+- [ ] Structured auth event logging for all five audit events above.
+- [ ] Route-level test matrix covering public, user, owner, and admin for each protected endpoint (include malformed/expired token cases for auth decorator unit tests).
+
+Minimum Test Bar (Current Decision):
+1. Route-level test matrix: public, user, owner, admin — one happy-path and one rejection case per route group.
+2. Auth decorator unit tests: missing token → 401, expired token → 401, valid non-admin → 403 on admin route, valid owner → 200 on own company, non-owner user → 403.
+
+Definition of Done (Current Decision):
+1. BE-011 acceptance criteria pass.
+2. All five audit event types appear in structured logs under integration test.
+3. Route matrix tests green for public, user, owner, and admin paths.
+
 ### BE-012 Link checker and content quality job
 Estimate: 0.5 day
 Dependencies: BE-010
