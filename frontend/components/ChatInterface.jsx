@@ -1,0 +1,211 @@
+"use client";
+
+import { Alert, Box, Button, Stack } from "@mui/material";
+import { useEffect, useState } from "react";
+import ChatComposer from "./ChatComposer";
+import ChatMessageThread from "./ChatMessageThread";
+import ContextChips from "./ContextChips";
+import {
+  getSessionContext,
+  getSessionId,
+  getSessionMessages,
+  setSessionMessages,
+  updateSessionContext,
+  clearSession
+} from "@/lib/chatSession";
+import {
+  sendChatMessage,
+  formatRecommendations,
+  isRecoverableError
+} from "@/lib/navigatorApi";
+
+const WELCOME_MESSAGE = {
+  id: "welcome",
+  role: "assistant",
+  content:
+    "Hi! I'm here to help you discover resources for your startup. Tell me about what you're building, and I'll recommend programs, funding opportunities, and connections tailored to your needs.",
+  timestamp: Date.now(),
+  recommendations: []
+};
+
+export default function ChatInterface() {
+  const [messages, setMessages] = useState([]);
+  const [context, setContext] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize session on mount
+  useEffect(() => {
+    const id = getSessionId();
+    setSessionId(id);
+
+    const savedMessages = getSessionMessages();
+    const savedContext = getSessionContext();
+
+    if (savedMessages.length > 0) {
+      setMessages(savedMessages);
+      setContext(savedContext);
+    } else {
+      // Show welcome message for new sessions
+      setMessages([WELCOME_MESSAGE]);
+    }
+
+    setIsInitialized(true);
+  }, []);
+
+  // Persist messages when they change
+  useEffect(() => {
+    if (isInitialized && messages.length > 0) {
+      // Don't persist the welcome message if it's the only one
+      if (messages.length === 1 && messages[0].id === "welcome") {
+        return;
+      }
+      setSessionMessages(messages);
+    }
+  }, [messages, isInitialized]);
+
+  const handleSendMessage = async (messageText) => {
+    setError(null);
+
+    // Add user message to thread
+    const userMessage = {
+      id: Date.now(),
+      role: "user",
+      content: messageText,
+      timestamp: Date.now()
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setIsLoading(true);
+
+    try {
+      // Send to backend
+      const response = await sendChatMessage(messageText, context);
+
+      // Update context
+      if (response.derivedContext) {
+        const updatedContext = { ...context, ...response.derivedContext };
+        setContext(updatedContext);
+        updateSessionContext(response.derivedContext);
+      }
+
+      // Add assistant response
+      const assistantMessage = {
+        id: Date.now() + 1,
+        role: "assistant",
+        content: response.assistantMessage,
+        timestamp: Date.now(),
+        recommendations: formatRecommendations(response.recommendations),
+        streaming: true // Enable animation for latest message
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (err) {
+      console.error("Chat error:", err);
+      
+      setError({
+        message: err.userMessage || err.message || "Something went wrong",
+        code: err.code,
+        recoverable: isRecoverableError(err)
+      });
+
+      // Add error message to thread for context
+      const errorMessage = {
+        id: Date.now() + 1,
+        role: "assistant",
+        content:
+          "I apologize, but I encountered an issue. " +
+          (err.userMessage || "Please try rephrasing your message or try again later."),
+        timestamp: Date.now(),
+        isError: true
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleContextUpdate = (updates) => {
+    const updatedContext = { ...context, ...updates };
+    setContext(updatedContext);
+    updateSessionContext(updates);
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    // Remove last error message
+    setMessages((prev) => prev.filter((msg) => !msg.isError));
+  };
+
+  const handleClearSession = () => {
+    clearSession();
+    setMessages([WELCOME_MESSAGE]);
+    setContext({});
+    setError(null);
+    setSessionId(getSessionId());
+  };
+
+  if (!isInitialized) {
+    return null; // or a loading skeleton
+  }
+
+  return (
+    <Stack
+      sx={{
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        bgcolor: "background.default"
+      }}
+    >
+      {/* Error banner */}
+      {error && (
+        <Alert
+          severity="error"
+          onClose={() => setError(null)}
+          action={
+            error.recoverable && (
+              <Button color="inherit" size="small" onClick={handleRetry}>
+                Retry
+              </Button>
+            )
+          }
+          sx={{ borderRadius: 0 }}
+        >
+          {error.message}
+        </Alert>
+      )}
+
+      {/* Message thread */}
+      <ChatMessageThread
+        messages={messages}
+        isLoading={isLoading}
+        showWelcome={messages.length === 1 && messages[0].id === "welcome"}
+      />
+
+      {/* Context chips */}
+      {Object.keys(context).length > 0 && (
+        <ContextChips context={context} onContextUpdate={handleContextUpdate} />
+      )}
+
+      {/* Composer */}
+      <ChatComposer
+        onSendMessage={handleSendMessage}
+        disabled={isLoading}
+        placeholder="Ask about programs, funding, mentorship..."
+      />
+
+      {/* Debug: Clear session button (remove in production) */}
+      {process.env.NODE_ENV === "development" && messages.length > 1 && (
+        <Box sx={{ p: 1, textAlign: "center", bgcolor: "background.paper" }}>
+          <Button size="small" onClick={handleClearSession} variant="outlined">
+            Clear Session
+          </Button>
+        </Box>
+      )}
+    </Stack>
+  );
+}
