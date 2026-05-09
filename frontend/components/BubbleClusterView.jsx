@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, Button, Stack } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { useEffect, useState, useRef } from "react";
 import { buildBubbleHierarchy, createBubbleSimulation } from "@/lib/forceSimulation";
 import BubbleNode from "./BubbleNode";
@@ -134,19 +135,19 @@ export default function BubbleClusterView({
     <Box
       ref={containerRef}
       onClick={handleBackgroundClick}
-      sx={{
+      sx={(theme) => ({
         position: "relative",
         width: "100%",
         height: { xs: 400, md: 600 },
         borderRadius: 2,
         overflow: "hidden",
-        border: "1px solid #d7d2c7",
-        background: "linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%)",
+        border: `1px solid ${theme.palette.divider}`,
+        background: `linear-gradient(145deg, ${alpha(theme.palette.primary.dark, 0.35)} 0%, ${theme.palette.background.paper} 48%, ${alpha(theme.palette.secondary.dark, 0.25)} 100%)`,
         opacity: isVisible ? 1 : 0,
         transform: isVisible ? "scale(1)" : "scale(0.8)",
         transition: "opacity 0.6s ease, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
         cursor: zoomedBubble ? "pointer" : "default"
-      }}
+      })}
     >
       {/* Controls */}
       <Stack
@@ -167,12 +168,14 @@ export default function BubbleClusterView({
               e.stopPropagation();
               setZoomedBubble(null);
             }}
-            sx={{
-              background: "rgba(255, 255, 255, 0.95)",
+            sx={(theme) => ({
+              borderColor: "divider",
+              color: "text.primary",
+              backgroundColor: alpha(theme.palette.background.paper, 0.92),
               "&:hover": {
-                background: "rgba(255, 255, 255, 1)"
+                backgroundColor: theme.palette.background.paper
               }
-            }}
+            })}
           >
             Back to All
           </Button>
@@ -180,14 +183,14 @@ export default function BubbleClusterView({
         <Button
           size="small"
           variant="contained"
+          color="secondary"
           onClick={(e) => {
             e.stopPropagation();
             handleClearFilters();
           }}
           sx={{
-            background: "rgba(74, 144, 226, 0.9)",
             "&:hover": {
-              background: "rgba(74, 144, 226, 1)"
+              filter: "brightness(1.06)"
             }
           }}
         >
@@ -234,7 +237,7 @@ export default function BubbleClusterView({
               left: "50%",
               transform: "translate(-50%, -50%)",
               textAlign: "center",
-              color: "#666"
+              color: "text.secondary"
             }}
           >
             No companies match the selected filters

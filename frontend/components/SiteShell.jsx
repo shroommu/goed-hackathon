@@ -16,6 +16,7 @@ import {
   Typography,
   Button
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -35,11 +36,11 @@ export default function SiteShell({ children }) {
         position="sticky"
         color="transparent"
         elevation={0}
-        sx={{
-          borderBottom: "1px solid #d7d2c7",
-          backdropFilter: "blur(8px)",
-          backgroundColor: "rgb(248 246 241 / 92%)"
-        }}
+        sx={(theme) => ({
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          backdropFilter: "blur(12px)",
+          backgroundColor: alpha(theme.palette.background.default, 0.88)
+        })}
       >
         <Container maxWidth="lg">
           <Toolbar disableGutters sx={{ minHeight: 72 }}>
@@ -63,7 +64,7 @@ export default function SiteShell({ children }) {
                   height: 32,
                   borderRadius: "999px",
                   backgroundColor: "primary.main",
-                  color: "background.default",
+                  color: "primary.contrastText",
                   display: "grid",
                   placeItems: "center",
                   fontFamily: "var(--font-heading)",
@@ -131,7 +132,7 @@ export default function SiteShell({ children }) {
         </Container>
       </Box>
 
-      <Box component="footer" sx={{ borderTop: "1px solid #d7d2c7" }}>
+      <Box component="footer" sx={{ borderTop: 1, borderColor: "divider" }}>
         <Container maxWidth="lg" sx={{ py: 3, color: "text.secondary", fontSize: "0.9rem" }}>
           <Typography variant="body2">Governor&rsquo;s Office of Economic Opportunity &mdash; Empowering Utah&rsquo;s entrepreneurs and the Startup Capital of the World.</Typography>
         </Container>

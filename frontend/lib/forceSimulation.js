@@ -339,16 +339,16 @@ export function getCompanyColor(companyName) {
   const firstLetter = (companyName || "?")[0].toUpperCase();
   const colorIndex = firstLetter.charCodeAt(0) % 10;
   const colors = [
-    "#4A90E2",
-    "#7B68EE",
-    "#50C878",
-    "#FF6B6B",
-    "#FFA500",
-    "#9B59B6",
-    "#3498DB",
-    "#E74C3C",
-    "#1ABC9C",
-    "#F39C12",
+    "#38bdf8",
+    "#22d3ee",
+    "#34d399",
+    "#0ea5e9",
+    "#2dd4bf",
+    "#10b981",
+    "#0284c7",
+    "#14b8a6",
+    "#059669",
+    "#06b6d4",
   ];
   return colors[colorIndex];
 }

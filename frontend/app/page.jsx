@@ -2,6 +2,7 @@
 
 import SiteShell from "@/components/SiteShell";
 import { Box, Button, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import Link from "next/link";
 
 export default function HomePage() {
@@ -18,20 +19,20 @@ export default function HomePage() {
           Start Something Here.
         </Typography>
         <Typography variant="body1" sx={{ color: "text.secondary", fontSize: { xs: "1rem", md: "1.2rem" } }} gutterBottom>
-          Be a part of Utah's thriving startup scene. Start, grow, and build your business with personalized resources from the Governor's Office of Economic Opportunity.
+          Be a part of Utah&rsquo;s thriving startup scene. Start, grow, and build your business with personalized resources from the Governor&rsquo;s Office of Economic Opportunity.
         </Typography>
       </Box>
 
       <Stack component="section" id="get-started" aria-label="Choose your mode" spacing={3} sx={{ mt: 5 }}>
         <Box
           aria-labelledby="entrepreneur-header"
-          sx={{
+          sx={(theme) => ({
             p: { xs: 2, md: 3 },
             borderRadius: 3,
             border: "1px solid",
             borderColor: "divider",
-            backgroundColor: "rgba(15, 118, 110, 0.04)"
-          }}
+            backgroundColor: alpha(theme.palette.primary.main, 0.1)
+          })}
         >
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
             <Chip label="Entrepreneurs" color="primary" size="small" />
@@ -63,18 +64,18 @@ export default function HomePage() {
 
         <Box
           aria-labelledby="investor-header"
-          sx={{
+          sx={(theme) => ({
             p: { xs: 2, md: 3 },
             borderRadius: 3,
             border: "1px solid",
             borderColor: "divider",
-            backgroundColor: "rgba(15, 23, 42, 0.04)"
-          }}
+            backgroundColor: alpha(theme.palette.secondary.main, 0.1)
+          })}
         >
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-            <Chip label="Investors" color="default" size="small" />
+            <Chip label="Investors" color="secondary" size="small"/>
             <Typography id="investor-header" variant="h2" sx={{ fontSize: "1.3rem" }}>
-              Explore Utah's thriving startup ecosystem
+              Explore Utah&rsquo;s thriving startup ecosystem
             </Typography>
           </Stack>
           <Card>
@@ -83,7 +84,7 @@ export default function HomePage() {
                 Utah Startup Map
               </Typography>
               <Typography color="text.secondary" sx={{ mb: 2 }}>
-                Browse Utah's fastest-growing companies by sector and stage. Find opportunity clusters and build connections in the Startup Capital of the World.
+                Browse Utah&rsquo;s fastest-growing companies by sector and stage. Find opportunity clusters and build connections in the Startup Capital of the World.
               </Typography>
               <Button
                 component={Link}
@@ -127,7 +128,7 @@ export default function HomePage() {
               Grow Your Business
             </Typography>
             <Typography color="text.secondary">
-              Access programs, mentors, and networks tailored to your stage — whether you're early or scaling fast.
+              Access programs, mentors, and networks tailored to your stage — whether you&rsquo;re early or scaling fast.
             </Typography>
           </CardContent>
         </Card>
@@ -137,7 +138,7 @@ export default function HomePage() {
               Get Funding
             </Typography>
             <Typography color="text.secondary">
-              Discover funding opportunities, grants, and investors that champion Utah's entrepreneurial spirit.
+              Discover funding opportunities, grants, and investors that champion Utah&rsquo;s entrepreneurial spirit.
             </Typography>
           </CardContent>
         </Card>

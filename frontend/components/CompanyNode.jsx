@@ -34,17 +34,17 @@ export default function CompanyNode({
     >
       <Box
         onClick={handleClick}
-        sx={{
+        sx={(theme) => ({
           position: "absolute",
           left: x - radius,
           top: y - radius,
           width: radius * 2,
           height: radius * 2,
           borderRadius: "50%",
-          border: isSelected ? "3px solid #fff" : "2px solid #fff",
-          boxShadow: isSelected 
-            ? "0 4px 12px rgba(0,0,0,0.5), 0 0 0 2px #4A90E2" 
-            : "0 2px 4px rgba(0,0,0,0.3)",
+          border: isSelected ? `3px solid ${theme.palette.text.primary}` : `2px solid ${theme.palette.background.default}`,
+          boxShadow: isSelected
+            ? `0 4px 12px rgba(0,0,0,0.55), 0 0 0 2px ${theme.palette.primary.main}`
+            : "0 2px 4px rgba(0,0,0,0.45)",
           background: bgColor,
           display: "flex",
           alignItems: "center",
@@ -58,12 +58,12 @@ export default function CompanyNode({
             boxShadow: "0 4px 8px rgba(0,0,0,0.4)",
             zIndex: 100
           }
-        }}
+        })}
       >
         <Typography
           sx={{
             fontSize: radius * 0.8,
-            color: "#fff",
+            color: "#0b1120",
             fontWeight: "bold",
             userSelect: "none",
             pointerEvents: "none"

@@ -15,10 +15,21 @@ function createCompanyIcon(company) {
   
   // Generate a color based on the first letter for visual variety
   const colorIndex = firstLetter.charCodeAt(0) % 10;
-  const colors = ['#4A90E2', '#7B68EE', '#50C878', '#FF6B6B', '#FFA500', '#9B59B6', '#3498DB', '#E74C3C', '#1ABC9C', '#F39C12'];
+  const colors = [
+    "#38bdf8",
+    "#22d3ee",
+    "#34d399",
+    "#0ea5e9",
+    "#2dd4bf",
+    "#10b981",
+    "#0284c7",
+    "#14b8a6",
+    "#059669",
+    "#06b6d4"
+  ];
   const bgColor = colors[colorIndex];
   
-  const iconHtml = `<div style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.3); background: ${bgColor}; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff; font-weight: bold;">
+  const iconHtml = `<div style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #0b1120; box-shadow: 0 2px 8px rgba(0,0,0,0.45); background: ${bgColor}; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #0b1120; font-weight: bold;">
        ${firstLetter}
      </div>`;
   
@@ -108,7 +119,8 @@ export default function LeafletClusterMap({
           height: { xs: 340, md: 460 },
           borderRadius: 2,
           overflow: "hidden",
-          border: "1px solid #d7d2c7"
+          border: 1,
+          borderColor: "divider"
         }}
       >
         <MapContainer
@@ -124,7 +136,7 @@ export default function LeafletClusterMap({
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           />
 
           <MarkerClusterGroup

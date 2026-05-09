@@ -6,21 +6,28 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 const theme = createTheme({
   palette: {
-    mode: "light",
+    mode: "dark",
     primary: {
-      main: "#14213d"
+      main: "#38bdf8",
+      light: "#7dd3fc",
+      dark: "#0284c7",
+      contrastText: "#0b1120"
     },
     secondary: {
-      main: "#fca311"
+      main: "#34d399",
+      light: "#6ee7b7",
+      dark: "#059669",
+      contrastText: "#052e16"
     },
     background: {
-      default: "#f8f6f1",
-      paper: "#fffdf7"
+      default: "#0b1120",
+      paper: "#111c2e"
     },
     text: {
-      primary: "#14213d",
-      secondary: "#425466"
-    }
+      primary: "#e8f4fc",
+      secondary: "#94a3b8"
+    },
+    divider: "rgba(148, 163, 184, 0.18)"
   },
   shape: {
     borderRadius: 12
@@ -41,10 +48,10 @@ const theme = createTheme({
   components: {
     MuiCard: {
       styleOverrides: {
-        root: {
-          border: "1px solid #d7d2c7",
-          boxShadow: "0 16px 45px rgb(20 33 61 / 0.1)"
-        }
+        root: ({ theme: t }) => ({
+          border: `1px solid ${t.palette.divider}`,
+          boxShadow: "0 18px 50px rgb(0 0 0 / 0.35)"
+        })
       }
     }
   }
@@ -53,12 +60,17 @@ const theme = createTheme({
 export default function AppThemeProvider({ children }) {
   return (
     <ThemeProvider theme={theme}>
-      <CssBaseline />
+      <CssBaseline enableColorScheme />
       <GlobalStyles
         styles={{
           body: {
-            background:
-              "radial-gradient(circle at 10% 0%, #ffe8b7 0%, rgb(255 232 183 / 0%) 32%), linear-gradient(180deg, #f8f6f1 0%, #f4f0e5 100%)"
+            backgroundColor: theme.palette.background.default,
+            backgroundImage: `
+              radial-gradient(ellipse 120% 80% at 0% -20%, rgb(56 189 248 / 0.14), transparent 50%),
+              radial-gradient(ellipse 90% 60% at 100% 0%, rgb(52 211 153 / 0.1), transparent 45%),
+              linear-gradient(180deg, #0b1120 0%, #070b14 100%)
+            `,
+            backgroundAttachment: "fixed"
           }
         }}
       />

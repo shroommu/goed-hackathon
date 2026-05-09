@@ -16,7 +16,7 @@ export default function NavigatorPage() {
           variant="overline"
           sx={{ letterSpacing: "0.08em", fontWeight: 700, color: "text.secondary" }}
         >
-          Utah's Startup State — Your Journey Starts Here
+          Utah&rsquo;s Startup State — Your Journey Starts Here
         </Typography>
         <Typography
           id="navigator-title"
@@ -27,7 +27,7 @@ export default function NavigatorPage() {
         </Typography>
         <Typography variant="body1" sx={{ color: "text.secondary" }}>
           Share your stage, goals, and needs. The assistant connects you with relevant programs,
-          funding, and ecosystem partners from Utah's thriving entrepreneurial community.
+          funding, and ecosystem partners from Utah&rsquo;s thriving entrepreneurial community.
         </Typography>
       </Box>
 

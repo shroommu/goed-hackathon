@@ -28,22 +28,22 @@ export default function BubbleNode({
   // Calculate bubble color based on type
   const getBubbleColor = (type) => {
     const colors = {
-      sector: "rgba(74, 144, 226, 0.15)",
-      stage: "rgba(123, 104, 238, 0.15)",
-      size: "rgba(80, 200, 120, 0.15)",
-      location: "rgba(255, 107, 107, 0.15)"
+      sector: "rgba(56, 189, 248, 0.14)",
+      stage: "rgba(34, 211, 238, 0.14)",
+      size: "rgba(52, 211, 153, 0.14)",
+      location: "rgba(16, 185, 129, 0.14)"
     };
-    return colors[type] || "rgba(100, 100, 100, 0.15)";
+    return colors[type] || "rgba(148, 163, 184, 0.12)";
   };
-  
+
   const getBorderColor = (type) => {
     const colors = {
-      sector: "rgba(74, 144, 226, 0.6)",
-      stage: "rgba(123, 104, 238, 0.6)",
-      size: "rgba(80, 200, 120, 0.6)",
-      location: "rgba(255, 107, 107, 0.6)"
+      sector: "rgba(56, 189, 248, 0.55)",
+      stage: "rgba(34, 211, 238, 0.55)",
+      size: "rgba(52, 211, 153, 0.55)",
+      location: "rgba(16, 185, 129, 0.55)"
     };
-    return colors[type] || "rgba(100, 100, 100, 0.6)";
+    return colors[type] || "rgba(148, 163, 184, 0.45)";
   };
   
   // Initialize company positions with force simulation
@@ -115,28 +115,29 @@ export default function BubbleNode({
         pointerEvents: pointerEvents,
         "&:hover": {
           transform: `scale(${scale * 1.05})`,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.2)"
+          boxShadow: "0 8px 28px rgba(0,0,0,0.45)"
         }
       }}
     >
       {/* Label positioned above bubble */}
       <Typography
-        sx={{
+        sx={(theme) => ({
           position: "absolute",
           top: -35,
           left: "50%",
           transform: "translateX(-50%)",
           fontSize: isZoomed ? "18px" : "14px",
           fontWeight: "bold",
-          color: "#333",
+          color: theme.palette.text.primary,
           whiteSpace: "nowrap",
-          background: "rgba(255, 255, 255, 0.9)",
+          background: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
           padding: "4px 12px",
           borderRadius: "12px",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+          boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
           userSelect: "none",
           pointerEvents: "none"
-        }}
+        })}
       >
         {labelText}
       </Typography>
