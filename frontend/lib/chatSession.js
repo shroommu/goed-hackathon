@@ -66,9 +66,14 @@ export function updateSessionContext(derivedContext) {
     const currentContext = getSessionContext();
     const mergedContext = { ...currentContext, ...derivedContext };
     
-    // Clean up null/undefined values
+    // Clean up removed or empty context values
     Object.keys(mergedContext).forEach((key) => {
-      if (mergedContext[key] === null || mergedContext[key] === undefined) {
+      if (
+        mergedContext[key] === null ||
+        mergedContext[key] === undefined ||
+        mergedContext[key] === "" ||
+        (Array.isArray(mergedContext[key]) && mergedContext[key].length === 0)
+      ) {
         delete mergedContext[key];
       }
     });

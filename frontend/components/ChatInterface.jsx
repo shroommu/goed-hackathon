@@ -145,6 +145,17 @@ export default function ChatInterface() {
 
   const handleContextUpdate = (updates) => {
     const updatedContext = { ...context, ...updates };
+    Object.keys(updatedContext).forEach((key) => {
+      if (
+        updatedContext[key] === null ||
+        updatedContext[key] === undefined ||
+        updatedContext[key] === "" ||
+        (Array.isArray(updatedContext[key]) && updatedContext[key].length === 0)
+      ) {
+        delete updatedContext[key];
+      }
+    });
+
     setContext(updatedContext);
     updateSessionContext(updates);
   };
