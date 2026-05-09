@@ -190,24 +190,24 @@ Context fields to extract/update:
 - challenges: Current blockers or pain points
 
 Output your response as JSON with this structure:
-{
+{{
   "assistant_message": "Natural language response to user",
-  "derived_context": {
+  "derived_context": {{
     "stage": "extracted or updated stage",
     "industry": "extracted or updated industry",
     "location": "extracted or updated location",
     "objectives": ["list of objectives"],
     "topics": ["list of topics"],
     "challenges": ["list of challenges"]
-  },
+  }},
   "recommendations": [
-    {
+    {{
       "id": 123,
       "rationale": "Personalized explanation of why this resource matches"
-    }
+    }}
   ],
   "follow_up_question": "Clarifying question when critical context is missing (REQUIRED if less than 2 recommendations)"
-}
+}}
 
 EXAMPLES:
 
