@@ -1,13 +1,15 @@
 {
-    "experimentalServices": {
-        "frontend": {
-            "entrypoint": "frontend",
-            "routePrefix": "/",
-            "framework": "nextjs"
+    "buildCommand": "cd frontend && npm run build",
+    "outputDirectory": "frontend/.next",
+    "framework": "nextjs",
+    "rewrites": [
+        {
+            "source": "/api/:path*",
+            "destination": "https://goed-hackathon.vercel.app/api/:path*"
         },
-        "backend": {
-            "entrypoint": "backend",
-            "routePrefix": "/_/backend"
+        {
+            "source": "/_/backend/:path*",
+            "destination": "https://goed-hackathon.vercel.app/:path*"
         }
-    }
+    ]
 }
