@@ -14,6 +14,27 @@ from .models import Resource
 
 logger = logging.getLogger(__name__)
 
+
+def _normalize_llm_message_content(content: Any) -> str:
+    """LangChain/OpenRouter may return str or a list of content blocks; normalize to text."""
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict):
+                if block.get("type") == "text" and isinstance(block.get("text"), str):
+                    parts.append(block["text"])
+                elif isinstance(block.get("text"), str):
+                    parts.append(block["text"])
+        return "".join(parts)
+    return str(content)
+
+
 BE016_CANDIDATE_LIMIT = 20
 BE016_MAX_RECOMMENDATIONS = 5
 BE016_FALLBACK_RATIONALE = (
@@ -268,6 +289,14 @@ def get_llm_client(timeout_seconds: float | None = None) -> ChatOpenAI | None:
     configured_timeout = current_app.config.get("LLM_TIMEOUT_SECONDS", 30)
     client_timeout = timeout_seconds if timeout_seconds is not None else configured_timeout
 
+    referer = current_app.config.get("OPENROUTER_HTTP_REFERER") or ""
+    title = current_app.config.get("OPENROUTER_APP_TITLE", "GoED Navigator")
+    default_headers: dict[str, str] = {
+        # OpenRouter expects these for attribution; some providers misbehave if omitted.
+        "HTTP-Referer": referer,
+        "X-Title": title,
+    }
+
     return ChatOpenAI(
         model=current_app.config.get(
             "OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct"
@@ -278,6 +307,7 @@ def get_llm_client(timeout_seconds: float | None = None) -> ChatOpenAI | None:
         ),
         timeout=client_timeout,
         temperature=0.7,
+        default_headers=default_headers,
     )
 
 
@@ -411,8 +441,8 @@ Remember: Only recommend resources from this candidate list. Include the exact r
             }
         )
 
-        # Parse the response content
-        content = response.content.strip()
+        # Parse the response content (may be str or multimodal list from OpenRouter)
+        content = _normalize_llm_message_content(response.content).strip()
 
         # Try to extract JSON from the response
         # LLMs sometimes wrap JSON in markdown code blocks
@@ -439,7 +469,11 @@ Remember: Only recommend resources from this candidate list. Include the exact r
 
     except json.JSONDecodeError as e:
         logger.error("Failed to parse LLM JSON response: %s", e)
-        raw_content = response.content if "response" in locals() else "No response"
+        raw_content = (
+            _normalize_llm_message_content(response.content)
+            if "response" in locals()
+            else "No response"
+        )
         logger.error("Raw response: %s", raw_content)
         raise
     except Exception as e:

@@ -14,6 +14,17 @@ def _normalized_database_url() -> str:
     return database_url
 
 
+def _openrouter_http_referer() -> str:
+    """Site URL for OpenRouter attribution headers (see openrouter.ai/docs/requests)."""
+    explicit = os.getenv("OPENROUTER_HTTP_REFERER", "").strip()
+    if explicit:
+        return explicit
+    vercel = os.getenv("VERCEL_URL", "").strip()
+    if vercel:
+        return vercel if vercel.startswith("http") else f"https://{vercel}"
+    return "https://goed-hackathon-backend.vercel.app"
+
+
 class BaseConfig:
     APP_NAME = os.getenv("APP_NAME", "goed-hackathon-api")
     BUILD_VERSION = os.getenv("BUILD_VERSION", "dev")
@@ -30,6 +41,8 @@ class BaseConfig:
     OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
     OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct")
     OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+    OPENROUTER_HTTP_REFERER = _openrouter_http_referer()
+    OPENROUTER_APP_TITLE = os.getenv("OPENROUTER_APP_TITLE", "GoED Navigator")
     LLM_TIMEOUT_SECONDS = int(os.getenv("LLM_TIMEOUT_SECONDS", "30"))
 
 

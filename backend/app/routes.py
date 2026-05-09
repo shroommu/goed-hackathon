@@ -34,6 +34,12 @@ def register_routes(app: Flask) -> None:
         debug_info = {
             "openrouter_api_key_configured": bool(current_app.config.get("OPENROUTER_API_KEY")),
             "openrouter_model": current_app.config.get("OPENROUTER_MODEL", "not set"),
+            "openrouter_http_referer": current_app.config.get(
+                "OPENROUTER_HTTP_REFERER", "not set"
+            ),
+            "openrouter_app_title": current_app.config.get(
+                "OPENROUTER_APP_TITLE", "not set"
+            ),
             "database_url_configured": bool(current_app.config.get("SQLALCHEMY_DATABASE_URI")),
         }
         
