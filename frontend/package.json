@@ -9,13 +9,17 @@
         "lint": "next lint"
     },
     "dependencies": {
+        "@changey/react-leaflet-markercluster": "^4.0.0-rc1",
         "@emotion/react": "^11.14.0",
         "@emotion/styled": "^11.14.1",
         "@mui/icons-material": "^9.0.1",
         "@mui/material": "^9.0.1",
+        "leaflet": "^1.9.4",
+        "leaflet.markercluster": "^1.5.3",
         "next": "14.2.5",
         "react": "18.3.1",
-        "react-dom": "18.3.1"
+        "react-dom": "18.3.1",
+        "react-leaflet": "^4.2.1"
     },
     "devDependencies": {
         "eslint": "8.57.0",
