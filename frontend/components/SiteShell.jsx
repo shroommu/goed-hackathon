@@ -31,10 +31,6 @@ export default function SiteShell({ children }) {
 
   return (
     <>
-      <a className="skip-link" href="#main-content">
-        Skip to main content
-      </a>
-
       <AppBar
         position="sticky"
         color="transparent"

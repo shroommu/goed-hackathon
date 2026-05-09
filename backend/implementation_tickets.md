@@ -83,7 +83,7 @@ Acceptance Criteria:
 2. Admin can edit company metadata and status.
 3. Changes are reflected immediately in public queries.
 
-### BE-014 Conversational resource orchestration API
+### BE-014 Conversational resource orchestration API [COMPLETED]
 Estimate: 1.5 days
 Dependencies: BE-006
 Acceptance Criteria:

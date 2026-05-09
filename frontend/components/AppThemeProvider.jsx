@@ -59,21 +59,6 @@ export default function AppThemeProvider({ children }) {
           body: {
             background:
               "radial-gradient(circle at 10% 0%, #ffe8b7 0%, rgb(255 232 183 / 0%) 32%), linear-gradient(180deg, #f8f6f1 0%, #f4f0e5 100%)"
-          },
-          ".skip-link": {
-            position: "absolute",
-            left: "1rem",
-            top: "-120px",
-            zIndex: 1200,
-            padding: "0.75rem 1rem",
-            borderRadius: "0.5rem",
-            background: "#14213d",
-            color: "#f8f6f1",
-            textDecoration: "none",
-            transition: "top 180ms ease"
-          },
-          ".skip-link:focus": {
-            top: "0.75rem"
           }
         }}
       />
