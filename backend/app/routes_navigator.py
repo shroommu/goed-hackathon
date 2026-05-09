@@ -180,6 +180,7 @@ def _validate_and_enrich_recommendations(
                 "topics": resource.topics or "",
                 "industries": resource.industries or "",
                 "communities": resource.communities or "",
+                "locations": resource.locations or "",
             }
         )
 
@@ -470,6 +471,7 @@ def generate_deterministic_response(
                 "topics": resource.topics or "",
                 "industries": resource.industries or "",
                 "communities": resource.communities or "",
+                "locations": resource.locations or "",
             }
         )
 

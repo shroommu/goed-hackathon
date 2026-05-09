@@ -7,8 +7,72 @@ import {
   Stack,
   Typography
 } from "@mui/material";
+import { splitResourceTags } from "../lib/tagUtils";
+
+const chipSx = {
+  fontSize: "0.75rem",
+  maxWidth: "100%",
+  height: "auto",
+  "& .MuiChip-label": {
+    whiteSpace: "normal",
+    overflow: "visible",
+    textOverflow: "clip",
+    py: 0.5
+  }
+};
+
+function TagChipRow({ items }) {
+  if (!items.length) {
+    return null;
+  }
+  return (
+    <Stack direction="row" useFlexGap flexWrap="wrap" spacing={0.75}>
+      {items.map((label, idx) => (
+        <Chip
+          key={`${idx}-${label}`}
+          size="small"
+          label={label}
+          variant="outlined"
+          sx={chipSx}
+        />
+      ))}
+    </Stack>
+  );
+}
+
+function TagSection({ title, items }) {
+  if (!items.length) {
+    return null;
+  }
+  return (
+    <Stack spacing={0.5}>
+      <Typography
+        variant="caption"
+        sx={{
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          color: "text.secondary",
+          fontWeight: 600
+        }}
+      >
+        {title}
+      </Typography>
+      <TagChipRow items={items} />
+    </Stack>
+  );
+}
 
 export default function RecommendationCard({ recommendation }) {
+  const industries = splitResourceTags(recommendation.industries);
+  const topics = splitResourceTags(recommendation.topics);
+  const communities = splitResourceTags(recommendation.communities);
+  const locations = splitResourceTags(recommendation.locations);
+  const hasTags =
+    industries.length > 0 ||
+    topics.length > 0 ||
+    communities.length > 0 ||
+    locations.length > 0;
+
   return (
     <Card
       sx={{
@@ -43,32 +107,14 @@ export default function RecommendationCard({ recommendation }) {
           </>
         )}
 
-        <Stack direction="row" spacing={0.75} flexWrap="wrap" sx={{ rowGap: 0.75 }}>
-          {recommendation.industries && (
-            <Chip
-              size="small"
-              label={recommendation.industries}
-              variant="outlined"
-              sx={{ fontSize: "0.75rem" }}
-            />
-          )}
-          {recommendation.topics && (
-            <Chip
-              size="small"
-              label={recommendation.topics}
-              variant="outlined"
-              sx={{ fontSize: "0.75rem" }}
-            />
-          )}
-          {recommendation.locations && (
-            <Chip
-              size="small"
-              label={recommendation.locations}
-              variant="outlined"
-              sx={{ fontSize: "0.75rem" }}
-            />
-          )}
-        </Stack>
+        {hasTags && (
+          <Stack spacing={1.5}>
+            <TagSection title="Sector & industry" items={industries} />
+            <TagSection title="Topics & program types" items={topics} />
+            <TagSection title="Communities" items={communities} />
+            <TagSection title="Location" items={locations} />
+          </Stack>
+        )}
       </CardContent>
 
       {recommendation.url && recommendation.url !== "#" && (
