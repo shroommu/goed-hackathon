@@ -4,13 +4,14 @@ from flask import Blueprint, Flask, current_app, jsonify
 
 from .routes_admin import register_admin_routes
 from .routes_companies import register_company_routes, requests
+from .routes_navigator import register_navigator_routes
 from .routes_resources import register_resource_routes
 
 
 def register_routes(app: Flask) -> None:
     # Create a blueprint for all API routes with /api prefix
-    api = Blueprint('api', __name__, url_prefix='/api')
-    
+    api = Blueprint("api", __name__, url_prefix="/api")
+
     @api.get("/health")
     def health() -> tuple[dict[str, str], int]:
         return (
@@ -27,7 +28,8 @@ def register_routes(app: Flask) -> None:
     register_resource_routes(api)
     register_company_routes(api)
     register_admin_routes(api)
-    
+    register_navigator_routes(api)
+
     # Register the blueprint with the app
     app.register_blueprint(api)
 

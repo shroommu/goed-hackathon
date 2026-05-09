@@ -26,6 +26,12 @@ class BaseConfig:
         "pool_pre_ping": True,
     }
 
+    # OpenRouter / LLM Configuration
+    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+    OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct")
+    OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+    LLM_TIMEOUT_SECONDS = int(os.getenv("LLM_TIMEOUT_SECONDS", "30"))
+
 
 class LocalConfig(BaseConfig):
     DEBUG = True
