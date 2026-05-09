@@ -42,7 +42,7 @@ Acceptance Criteria:
 1. Each recommendation shows why it matches.
 2. Recommendation payload shape matches backend contract.
 
-### FE-005 Interactive Utah startup map and filtered mindmap
+### FE-005 Interactive Utah startup map and filtered mindmap [COMPLETED]
 Estimate: 2.5 days
 Dependencies: FE-001, BE-007
 Acceptance Criteria:

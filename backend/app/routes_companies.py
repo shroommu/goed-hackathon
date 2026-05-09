@@ -543,7 +543,8 @@ def _create_company_listing(payload: dict):
 
     row = (
         db.session.execute(
-            text("SELECT * FROM companies WHERE id = :id AND archived = FALSE"), {"id": company_id}
+            text("SELECT * FROM companies WHERE id = :id AND archived = FALSE"),
+            {"id": company_id},
         )
         .mappings()
         .first()
@@ -617,7 +618,9 @@ def _has_pending_claim_for_user(*, user_id: str, status_column: str):
 
 def _company_exists(company_id: int) -> bool:
     row = db.session.execute(
-        text("SELECT 1 FROM companies WHERE id = :company_id AND archived = FALSE LIMIT 1"),
+        text(
+            "SELECT 1 FROM companies WHERE id = :company_id AND archived = FALSE LIMIT 1"
+        ),
         {"company_id": company_id},
     ).first()
     return row is not None
@@ -1605,7 +1608,7 @@ def _list_companies(
         if max_size is not None:
             where_clauses.append(f"{employee_sql} <= :max_size")
             bind_params["max_size"] = max_size
-    
+
     # Always filter out archived companies
     where_clauses.append("archived = FALSE")
 
