@@ -22,7 +22,8 @@ import {
   Language as LanguageIcon,
   LinkedIn as LinkedInIcon,
   LocationOn as LocationIcon,
-  People as PeopleIcon
+  People as PeopleIcon,
+  WorkOutline as WorkOutlineIcon
 } from "@mui/icons-material";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -198,7 +199,7 @@ export default function CompanyProfilePage() {
               </Card>
             )}
 
-            {/* Job Postings */}
+            {/* Media gallery (URLs from backend + company_media) */}
             {company.photo_gallery && company.photo_gallery.length > 0 && (
               <Card sx={{ mb: 3 }}>
                 <CardContent>
@@ -206,9 +207,10 @@ export default function CompanyProfilePage() {
                     Media Gallery
                   </Typography>
                   <Grid container spacing={2}>
-                    {company.photo_gallery.map((photoUrl, index) => (
-                      isValidUrl(photoUrl) && (
-                        <Grid item xs={12} sm={6} md={4} key={index}>
+                    {company.photo_gallery
+                      .filter(isValidUrl)
+                      .map((photoUrl, index) => (
+                        <Grid item xs={12} sm={6} md={4} key={`${photoUrl}-${index}`}>
                           <Card variant="outlined">
                             <CardMedia
                               component="img"
@@ -222,8 +224,7 @@ export default function CompanyProfilePage() {
                             />
                           </Card>
                         </Grid>
-                      )
-                    ))}
+                      ))}
                   </Grid>
                   {company.photo_gallery.filter(isValidUrl).length === 0 && (
                     <Typography color="text.secondary">No valid images available</Typography>

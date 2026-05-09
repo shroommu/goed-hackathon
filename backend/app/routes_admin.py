@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import os
-from functools import wraps
-
-from flask import Flask, jsonify, request
+from flask import Flask, g, jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
 
+from .auth import log_admin_mutation_success, require_admin
 from .extensions import db
 from .models import Company, Resource
 
@@ -20,46 +18,6 @@ def _error_response(status: int, code: str, message: str, details: dict | None =
     if details:
         payload["error"]["details"] = details
     return jsonify(payload), status
-
-
-def _require_admin_key(f):
-    """Decorator to validate admin API key from Authorization header."""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        auth_header = request.headers.get("Authorization", "")
-        
-        if not auth_header:
-            return _error_response(
-                401,
-                "missing_authorization",
-                "Authorization header is required.",
-            )
-        
-        # Support "Bearer TOKEN" format
-        if auth_header.startswith("Bearer "):
-            provided_key = auth_header[7:].strip()
-        else:
-            provided_key = auth_header.strip()
-        
-        expected_key = os.getenv("ADMIN_API_KEY")
-        
-        if not expected_key:
-            return _error_response(
-                503,
-                "admin_not_configured",
-                "Admin authentication is not configured.",
-            )
-        
-        if provided_key != expected_key:
-            return _error_response(
-                401,
-                "invalid_credentials",
-                "Invalid API key.",
-            )
-        
-        return f(*args, **kwargs)
-    
-    return decorated_function
 
 
 def _request_json_object():
@@ -110,7 +68,7 @@ def register_admin_routes(app) -> None:
     """Register admin-only endpoints for content management."""
     
     @app.post("/admin/resources")
-    @_require_admin_key
+    @require_admin(action="admin_create_resource")
     def admin_create_resource():
         """Create a new resource."""
         payload, error = _request_json_object()
@@ -134,7 +92,12 @@ def register_admin_routes(app) -> None:
         try:
             db.session.add(resource)
             db.session.commit()
-            
+
+            log_admin_mutation_success(
+                actor_user_id=str(g.auth_user["id"]),
+                target={"type": "resource", "resource_id": resource.id, "operation": "create"},
+            )
+
             return jsonify({
                 "message": "Resource created successfully.",
                 "resource": _resource_to_dict(resource),
@@ -150,7 +113,7 @@ def register_admin_routes(app) -> None:
             )
     
     @app.patch("/admin/resources/<int:resource_id>")
-    @_require_admin_key
+    @require_admin(action="admin_update_resource")
     def admin_update_resource(resource_id: int):
         """Update an existing resource."""
         resource = db.session.get(Resource, resource_id)
@@ -186,7 +149,16 @@ def register_admin_routes(app) -> None:
         
         try:
             db.session.commit()
-            
+
+            log_admin_mutation_success(
+                actor_user_id=str(g.auth_user["id"]),
+                target={
+                    "type": "resource",
+                    "resource_id": resource_id,
+                    "operation": "patch",
+                },
+            )
+
             return jsonify({
                 "message": "Resource updated successfully.",
                 "resource": _resource_to_dict(resource),
@@ -202,7 +174,7 @@ def register_admin_routes(app) -> None:
             )
     
     @app.post("/admin/resources/<int:resource_id>/archive")
-    @_require_admin_key
+    @require_admin(action="admin_archive_resource")
     def admin_archive_resource(resource_id: int):
         """Archive a resource (soft delete)."""
         resource = db.session.get(Resource, resource_id)
@@ -225,7 +197,16 @@ def register_admin_routes(app) -> None:
         
         try:
             db.session.commit()
-            
+
+            log_admin_mutation_success(
+                actor_user_id=str(g.auth_user["id"]),
+                target={
+                    "type": "resource",
+                    "resource_id": resource_id,
+                    "operation": "archive",
+                },
+            )
+
             return jsonify({
                 "message": "Resource archived successfully.",
                 "resource": _resource_to_dict(resource),
@@ -241,7 +222,7 @@ def register_admin_routes(app) -> None:
             )
     
     @app.patch("/admin/companies/<int:company_id>")
-    @_require_admin_key
+    @require_admin(action="admin_update_company")
     def admin_update_company(company_id: int):
         """Update an existing company."""
         company = db.session.get(Company, company_id)
@@ -283,7 +264,16 @@ def register_admin_routes(app) -> None:
         
         try:
             db.session.commit()
-            
+
+            log_admin_mutation_success(
+                actor_user_id=str(g.auth_user["id"]),
+                target={
+                    "type": "company",
+                    "company_id": company_id,
+                    "operation": "patch",
+                },
+            )
+
             return jsonify({
                 "message": "Company updated successfully.",
                 "company": _company_to_dict(company),
@@ -299,7 +289,7 @@ def register_admin_routes(app) -> None:
             )
     
     @app.post("/admin/companies/<int:company_id>/archive")
-    @_require_admin_key
+    @require_admin(action="admin_archive_company")
     def admin_archive_company(company_id: int):
         """Archive a company (soft delete)."""
         company = db.session.get(Company, company_id)
@@ -322,7 +312,16 @@ def register_admin_routes(app) -> None:
         
         try:
             db.session.commit()
-            
+
+            log_admin_mutation_success(
+                actor_user_id=str(g.auth_user["id"]),
+                target={
+                    "type": "company",
+                    "company_id": company_id,
+                    "operation": "archive",
+                },
+            )
+
             return jsonify({
                 "message": "Company archived successfully.",
                 "company": _company_to_dict(company),

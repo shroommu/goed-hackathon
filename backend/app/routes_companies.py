@@ -6,10 +6,17 @@ import re
 from urllib.parse import urlparse
 
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, g, jsonify, request
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, NoSuchTableError, OperationalError
 
+from .auth import (
+    log_admin_mutation_success,
+    log_owner_edit_success,
+    owner_or_admin_for_company,
+    require_admin,
+    require_auth,
+)
 from .extensions import db
 
 DEFAULT_PAGE = 1
@@ -61,7 +68,6 @@ CLAIM_DECISION_TO_STATUS = {
     "approve": CLAIM_STATUS_VERIFIED,
     "reject": CLAIM_STATUS_REJECTED,
 }
-ADMIN_ROLE_VALUES = {"admin", "goed_admin", "super_admin"}
 
 
 def _error_response(status: int, code: str, message: str, details: dict | None = None):
@@ -159,151 +165,6 @@ def _extract_domain(raw_website: str | None) -> str | None:
     if host.startswith("www."):
         host = host[4:]
     return host or None
-
-
-def _normalize_role_values(raw: object) -> set[str]:
-    if raw is None:
-        return set()
-    if isinstance(raw, str):
-        value = raw.strip().lower()
-        return {value} if value else set()
-    if isinstance(raw, (list, tuple, set)):
-        values: set[str] = set()
-        for item in raw:
-            if isinstance(item, str) and item.strip():
-                values.add(item.strip().lower())
-        return values
-    return set()
-
-
-def _admin_emails_from_env() -> set[str]:
-    configured = os.getenv("ADMIN_EMAILS", "")
-    return {email.strip().lower() for email in configured.split(",") if email.strip()}
-
-
-def _supabase_auth_api_key() -> str | None:
-    return (
-        os.getenv("SUPABASE_PUBLISHABLE_KEY")
-        or os.getenv("SUPABASE_ANON_KEY")
-        or os.getenv("SUPABASE_SECRET_KEY")
-    )
-
-
-def _verify_supabase_token(token: str):
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = _supabase_auth_api_key()
-
-    if not supabase_url or not supabase_key:
-        return None, _error_response(
-            503,
-            "auth_unavailable",
-            "Supabase auth verification is not configured.",
-            {
-                "required": [
-                    "SUPABASE_URL",
-                    "SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY",
-                ]
-            },
-        )
-
-    endpoint = f"{supabase_url.rstrip('/')}/auth/v1/user"
-    try:
-        response = requests.get(
-            endpoint,
-            headers={
-                "apikey": supabase_key,
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/json",
-            },
-            timeout=SUPABASE_AUTH_TIMEOUT_SECONDS,
-        )
-    except requests.RequestException as exc:
-        return None, _error_response(
-            503,
-            "auth_unavailable",
-            "Unable to reach Supabase auth verification endpoint.",
-            {"reason": str(exc)},
-        )
-
-    if response.status_code in {401, 403}:
-        return None, _error_response(
-            401, "invalid_auth_token", "Invalid or expired auth token."
-        )
-
-    if response.status_code >= 400:
-        return None, _error_response(
-            502,
-            "auth_provider_error",
-            "Supabase auth provider returned an error.",
-            {"status_code": response.status_code, "response": response.text},
-        )
-
-    user = response.json()
-    user_id = user.get("id")
-    if not user_id:
-        return None, _error_response(
-            401, "invalid_auth_token", "Auth token did not include user id."
-        )
-
-    user_email = user.get("email")
-    app_metadata = user.get("app_metadata")
-    user_metadata = user.get("user_metadata")
-    app_metadata = app_metadata if isinstance(app_metadata, dict) else {}
-    user_metadata = user_metadata if isinstance(user_metadata, dict) else {}
-
-    roles = set()
-    roles.update(_normalize_role_values(app_metadata.get("role")))
-    roles.update(_normalize_role_values(app_metadata.get("roles")))
-    roles.update(_normalize_role_values(user_metadata.get("role")))
-    roles.update(_normalize_role_values(user_metadata.get("roles")))
-
-    is_admin = bool(roles.intersection(ADMIN_ROLE_VALUES))
-    if isinstance(user_email, str) and user_email.strip():
-        is_admin = is_admin or user_email.strip().lower() in _admin_emails_from_env()
-
-    return (
-        {
-            "id": user_id,
-            "email": user_email,
-            "roles": sorted(roles),
-            "is_admin": is_admin,
-        },
-        None,
-    )
-
-
-def _require_authenticated_user():
-    auth_header = request.headers.get("Authorization", "").strip()
-    if not auth_header.lower().startswith("bearer "):
-        return None, _error_response(
-            401,
-            "missing_auth_token",
-            "Authorization header with Bearer token is required.",
-        )
-
-    token = auth_header[7:].strip()
-    if not token:
-        return None, _error_response(
-            401,
-            "missing_auth_token",
-            "Authorization header with Bearer token is required.",
-        )
-
-    return _verify_supabase_token(token)
-
-
-def _require_admin_user():
-    user, error = _require_authenticated_user()
-    if error:
-        return None, error
-    if not user.get("is_admin"):
-        return None, _error_response(
-            403,
-            "admin_required",
-            "This action requires admin privileges.",
-            {"user_id": user.get("id")},
-        )
-    return user, None
 
 
 def _claim_status_from_row(row: dict) -> str | None:
@@ -752,26 +613,6 @@ def _create_claim_request(*, company_id: int, payload: dict, user: dict):
     )
 
 
-def _is_verified_company_owner(*, company_id: int, user_id: str) -> bool:
-    columns = _table_columns("claim_requests")
-    status_column = _claim_status_column(columns)
-    if not status_column or "user_id" not in columns:
-        return False
-
-    row = db.session.execute(
-        text(f"""
-            SELECT 1
-            FROM claim_requests
-            WHERE company_id = :company_id
-              AND user_id = :user_id
-              AND LOWER({status_column}) = 'verified'
-            LIMIT 1
-            """),
-        {"company_id": company_id, "user_id": user_id},
-    ).first()
-    return row is not None
-
-
 def _user_claim_for_company(*, company_id: int, user: dict):
     if not _company_exists(company_id):
         return _error_response(
@@ -970,6 +811,15 @@ def _admin_decide_claim(*, claim_id: int, payload: dict, admin_user: dict):
             {"claim_id": claim_id, "decision": decision},
         )
 
+    log_admin_mutation_success(
+        actor_user_id=str(admin_user["id"]),
+        target={
+            "type": "claim_request",
+            "claim_id": claim_id,
+            "decision": decision,
+        },
+    )
+
     updated_row = (
         db.session.execute(
             text("""
@@ -1026,13 +876,9 @@ def _update_company_protected_fields(*, company_id: int, payload: dict, user: di
             {"company_id": company_id},
         )
 
-    if not _is_verified_company_owner(company_id=company_id, user_id=user["id"]):
-        return _error_response(
-            403,
-            "ownership_required",
-            "Only verified owners can edit protected fields.",
-            {"company_id": company_id, "user_id": user["id"]},
-        )
+    denied = owner_or_admin_for_company(user, company_id)
+    if denied:
+        return denied
 
     columns = _table_columns("companies")
     field_to_column = {
@@ -1080,6 +926,16 @@ def _update_company_protected_fields(*, company_id: int, payload: dict, user: di
         params,
     )
     db.session.commit()
+
+    if user.get("is_admin"):
+        log_admin_mutation_success(
+            actor_user_id=str(user["id"]),
+            target={"type": "company", "company_id": company_id, "operation": "patch_protected"},
+        )
+    else:
+        log_owner_edit_success(
+            actor_user_id=str(user["id"]), company_id=company_id
+        )
 
     try:
         return _get_company(company_id)
@@ -1818,6 +1674,7 @@ def register_company_routes(app) -> None:
             return _supabase_get_company(company_id)
 
     @app.post("/companies")
+    @require_auth(action="submit_listing")
     def create_company_listing():
         payload, error = _request_json_object()
         if error:
@@ -1834,10 +1691,9 @@ def register_company_routes(app) -> None:
             )
 
     @app.post("/companies/<int:company_id>/claims")
+    @require_auth(action="create_claim")
     def create_company_claim(company_id: int):
-        user, error = _require_authenticated_user()
-        if error:
-            return error
+        user = g.auth_user
 
         payload, error = _request_json_object()
         if error:
@@ -1856,10 +1712,9 @@ def register_company_routes(app) -> None:
             )
 
     @app.get("/companies/<int:company_id>/claims/me")
+    @require_auth(action="get_my_claim")
     def get_my_company_claim(company_id: int):
-        user, error = _require_authenticated_user()
-        if error:
-            return error
+        user = g.auth_user
 
         try:
             return _user_claim_for_company(company_id=company_id, user=user)
@@ -1872,11 +1727,8 @@ def register_company_routes(app) -> None:
             )
 
     @app.get("/admin/claims")
+    @require_admin(action="list_claims")
     def list_admin_claims():
-        _, error = _require_admin_user()
-        if error:
-            return error
-
         status, error = _parse_enum_filter(
             request.args.get("status"),
             field_name="status",
@@ -1896,10 +1748,9 @@ def register_company_routes(app) -> None:
             )
 
     @app.patch("/admin/claims/<int:claim_id>/verification")
+    @require_admin(action="decide_claim")
     def decide_admin_claim(claim_id: int):
-        admin_user, error = _require_admin_user()
-        if error:
-            return error
+        admin_user = g.auth_user
 
         payload, error = _request_json_object()
         if error:
@@ -1920,10 +1771,9 @@ def register_company_routes(app) -> None:
             )
 
     @app.patch("/companies/<int:company_id>")
+    @require_auth(action="update_company_protected")
     def update_company_protected_fields(company_id: int):
-        user, error = _require_authenticated_user()
-        if error:
-            return error
+        user = g.auth_user
 
         payload, error = _request_json_object()
         if error:

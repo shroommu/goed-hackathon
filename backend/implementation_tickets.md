@@ -165,16 +165,16 @@ Audit Events to Log:
 5. Successful owner edits — include actor user id and company id.
 
 Implementation Checklist:
-- [ ] `auth.py` decorator/helper: verify Supabase JWT and extract `sub`, `app_metadata.role`.
-- [ ] `require_auth` decorator: returns 401 with BE-006 envelope if no valid token.
-- [ ] `require_role("admin")` decorator: returns 403 if authenticated user lacks admin role.
-- [ ] `require_owner_or_admin(company_id)` helper: looks up approved claim by `user_id = sub`; falls back to admin role check; returns 403 otherwise.
-- [ ] Apply `require_auth` + `require_role("admin")` to all admin routes (`routes_admin.py`).
-- [ ] Apply `require_auth` to submit-listing and claim routes (`routes_companies.py`).
-- [ ] Apply `require_owner_or_admin` to company edit routes.
-- [ ] Apply `require_auth` + `require_role("admin")` to verification approval/rejection endpoints.
-- [ ] Structured auth event logging for all five audit events above.
-- [ ] Route-level test matrix covering public, user, owner, and admin for each protected endpoint (include malformed/expired token cases for auth decorator unit tests).
+- [x] `auth.py` decorator/helper: verify Supabase JWT and extract `sub`, `app_metadata.role`.
+- [x] `require_auth` decorator: returns 401 with BE-006 envelope if no valid token.
+- [x] `require_role("admin")` via `require_admin` decorator: returns 403 if authenticated user lacks admin role.
+- [x] `owner_or_admin_for_company` helper: verified claim by `user_id = sub` or admin role; returns 403 otherwise.
+- [x] Apply `require_admin` to all admin routes (`routes_admin.py`).
+- [x] Apply `require_auth` to submit-listing and claim routes (`routes_companies.py`).
+- [x] Apply `owner_or_admin_for_company` to company protected-field edit route.
+- [x] Apply `require_admin` to verification approval/rejection endpoints.
+- [x] Structured auth event logging for all five audit events above.
+- [x] Route-level / JWT tests: public vs protected, expired token, non-admin vs admin, claim decision audit (see `tests/test_be011_auth.py`, `tests/test_be008_workflow.py`).
 
 Minimum Test Bar (Current Decision):
 1. Route-level test matrix: public, user, owner, admin — one happy-path and one rejection case per route group.

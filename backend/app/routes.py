@@ -3,7 +3,7 @@ from __future__ import annotations
 from flask import Blueprint, Flask, current_app, jsonify
 
 from .routes_admin import register_admin_routes
-from .routes_companies import register_company_routes, requests
+from .routes_companies import register_company_routes
 from .routes_navigator import register_navigator_routes
 from .routes_resources import register_resource_routes
 
@@ -65,4 +65,4 @@ def register_routes(app: Flask) -> None:
     app.register_blueprint(api)
 
 
-__all__ = ["register_routes", "requests"]
+__all__ = ["register_routes"]

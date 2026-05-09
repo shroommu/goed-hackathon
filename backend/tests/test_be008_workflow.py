@@ -8,6 +8,9 @@ from sqlalchemy import text
 
 
 class Be008WorkflowTests(unittest.TestCase):
+    API_PREFIX = "/api"
+    AUTH_GET = "app.auth.requests.get"
+
     @classmethod
     def setUpClass(cls):
         cls._tmpdir = tempfile.TemporaryDirectory()
@@ -46,7 +49,8 @@ class Be008WorkflowTests(unittest.TestCase):
                         sector TEXT,
                         full_address TEXT,
                         linkedin TEXT,
-                        updated_at TEXT
+                        updated_at TEXT,
+                        archived INTEGER NOT NULL DEFAULT 0
                     )
                     """))
             cls.db.session.execute(text("""
@@ -121,25 +125,38 @@ class Be008WorkflowTests(unittest.TestCase):
         return response
 
     def test_create_listing_requires_required_fields(self):
-        response = self.client.post("/companies", json={"startup_name": "Only Name"})
+        with patch(
+            self.AUTH_GET,
+            return_value=self._auth_response("u-list", "lister@example.com"),
+        ):
+            response = self.client.post(
+                f"{self.API_PREFIX}/companies",
+                headers={"Authorization": "Bearer token-list"},
+                json={"startup_name": "Only Name"},
+            )
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json()["error"]["code"], "invalid_request_body")
 
     def test_create_listing_success(self):
-        response = self.client.post(
-            "/companies",
-            json={
-                "startup_name": "Bright Labs",
-                "website": "https://brightlabs.dev",
-                "description": "A new startup.",
-                "stage": "seed",
-                "employees": "12",
-                "sector": "AI",
-                "full_address": "Salt Lake City, UT",
-                "linkedin": "https://linkedin.com/company/brightlabs",
-            },
-        )
+        with patch(
+            self.AUTH_GET,
+            return_value=self._auth_response("u-list", "lister@example.com"),
+        ):
+            response = self.client.post(
+                f"{self.API_PREFIX}/companies",
+                headers={"Authorization": "Bearer token-list"},
+                json={
+                    "startup_name": "Bright Labs",
+                    "website": "https://brightlabs.dev",
+                    "description": "A new startup.",
+                    "stage": "seed",
+                    "employees": "12",
+                    "sector": "AI",
+                    "full_address": "Salt Lake City, UT",
+                    "linkedin": "https://linkedin.com/company/brightlabs",
+                },
+            )
 
         body = response.get_json()
         self.assertEqual(response.status_code, 201)
@@ -151,11 +168,11 @@ class Be008WorkflowTests(unittest.TestCase):
         company_id = self._insert_company()
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response("user-1", "owner@example.com"),
         ):
             response = self.client.post(
-                f"/companies/{company_id}/claims",
+                f"{self.API_PREFIX}/companies/{company_id}/claims",
                 headers={"Authorization": "Bearer token-1"},
                 json={
                     "role_at_company": "Founder",
@@ -182,11 +199,11 @@ class Be008WorkflowTests(unittest.TestCase):
             self.db.session.commit()
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response("user-2", "new@example.com"),
         ):
             response = self.client.post(
-                f"/companies/{company_id}/claims",
+                f"{self.API_PREFIX}/companies/{company_id}/claims",
                 headers={"Authorization": "Bearer token-2"},
                 json={"role_at_company": "Operator"},
             )
@@ -213,11 +230,11 @@ class Be008WorkflowTests(unittest.TestCase):
             self.db.session.commit()
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response("user-1", "owner@example.com"),
         ):
             response = self.client.post(
-                f"/companies/{company_two}/claims",
+                f"{self.API_PREFIX}/companies/{company_two}/claims",
                 headers={"Authorization": "Bearer token-1"},
                 json={"role_at_company": "CEO"},
             )
@@ -238,11 +255,11 @@ class Be008WorkflowTests(unittest.TestCase):
             self.db.session.commit()
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response("verified-user", "verified@example.com"),
         ):
             ok_response = self.client.patch(
-                f"/companies/{company_id}",
+                f"{self.API_PREFIX}/companies/{company_id}",
                 headers={"Authorization": "Bearer token-ok"},
                 json={"description": "Updated by verified owner"},
             )
@@ -254,11 +271,11 @@ class Be008WorkflowTests(unittest.TestCase):
         )
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response("pending-user", "pending@example.com"),
         ):
             deny_response = self.client.patch(
-                f"/companies/{company_id}",
+                f"{self.API_PREFIX}/companies/{company_id}",
                 headers={"Authorization": "Bearer token-deny"},
                 json={"description": "Should fail"},
             )
@@ -272,11 +289,11 @@ class Be008WorkflowTests(unittest.TestCase):
         company_id = self._insert_company()
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response("user-1", "owner@example.com"),
         ):
             create_response = self.client.post(
-                f"/companies/{company_id}/claims",
+                f"{self.API_PREFIX}/companies/{company_id}/claims",
                 headers={"Authorization": "Bearer token-1"},
                 json={
                     "role_at_company": "Founder",
@@ -287,11 +304,11 @@ class Be008WorkflowTests(unittest.TestCase):
         self.assertEqual(create_response.status_code, 201)
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response("user-1", "owner@example.com"),
         ):
             status_response = self.client.get(
-                f"/companies/{company_id}/claims/me",
+                f"{self.API_PREFIX}/companies/{company_id}/claims/me",
                 headers={"Authorization": "Bearer token-1"},
             )
 
@@ -310,11 +327,11 @@ class Be008WorkflowTests(unittest.TestCase):
         company_id = self._insert_company()
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response("owner-1", "owner@example.com"),
         ):
             create_response = self.client.post(
-                f"/companies/{company_id}/claims",
+                f"{self.API_PREFIX}/companies/{company_id}/claims",
                 headers={"Authorization": "Bearer owner-token"},
                 json={"role_at_company": "CEO"},
             )
@@ -323,13 +340,13 @@ class Be008WorkflowTests(unittest.TestCase):
         claim_id = create_response.get_json()["item"]["id"]
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response(
                 "admin-1", "admin@example.com", role="admin"
             ),
         ):
             approve_response = self.client.patch(
-                f"/admin/claims/{claim_id}/verification",
+                f"{self.API_PREFIX}/admin/claims/{claim_id}/verification",
                 headers={"Authorization": "Bearer admin-token"},
                 json={
                     "decision": "approve",
@@ -345,11 +362,11 @@ class Be008WorkflowTests(unittest.TestCase):
         )
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response("owner-1", "owner@example.com"),
         ):
             patch_response = self.client.patch(
-                f"/companies/{company_id}",
+                f"{self.API_PREFIX}/companies/{company_id}",
                 headers={"Authorization": "Bearer owner-token"},
                 json={"description": "Approved owner update."},
             )
@@ -364,11 +381,11 @@ class Be008WorkflowTests(unittest.TestCase):
         company_id = self._insert_company()
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response("owner-2", "owner2@example.com"),
         ):
             create_response = self.client.post(
-                f"/companies/{company_id}/claims",
+                f"{self.API_PREFIX}/companies/{company_id}/claims",
                 headers={"Authorization": "Bearer owner2-token"},
                 json={"role_at_company": "Founder"},
             )
@@ -377,13 +394,13 @@ class Be008WorkflowTests(unittest.TestCase):
         claim_id = create_response.get_json()["item"]["id"]
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response(
-                "admin-1", "admin@example.com", roles=["admin"]
+                "admin-1", "admin@example.com", role="admin"
             ),
         ):
             reject_response = self.client.patch(
-                f"/admin/claims/{claim_id}/verification",
+                f"{self.API_PREFIX}/admin/claims/{claim_id}/verification",
                 headers={"Authorization": "Bearer admin-token"},
                 json={"decision": "reject", "notes": "Insufficient proof."},
             )
@@ -392,11 +409,11 @@ class Be008WorkflowTests(unittest.TestCase):
         self.assertEqual(reject_response.get_json()["item"]["status"], "rejected")
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response("owner-2", "owner2@example.com"),
         ):
             update_response = self.client.patch(
-                f"/companies/{company_id}",
+                f"{self.API_PREFIX}/companies/{company_id}",
                 headers={"Authorization": "Bearer owner2-token"},
                 json={"description": "Should not publish"},
             )
@@ -411,11 +428,11 @@ class Be008WorkflowTests(unittest.TestCase):
         company_id = self._insert_company()
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response("owner-3", "owner3@example.com"),
         ):
             create_response = self.client.post(
-                f"/companies/{company_id}/claims",
+                f"{self.API_PREFIX}/companies/{company_id}/claims",
                 headers={"Authorization": "Bearer owner3-token"},
                 json={"role_at_company": "Founder"},
             )
@@ -424,11 +441,11 @@ class Be008WorkflowTests(unittest.TestCase):
         claim_id = create_response.get_json()["item"]["id"]
 
         with patch(
-            "app.routes.requests.get",
+            self.AUTH_GET,
             return_value=self._auth_response("user-x", "userx@example.com"),
         ):
             response = self.client.patch(
-                f"/admin/claims/{claim_id}/verification",
+                f"{self.API_PREFIX}/admin/claims/{claim_id}/verification",
                 headers={"Authorization": "Bearer user-token"},
                 json={"decision": "approve"},
             )

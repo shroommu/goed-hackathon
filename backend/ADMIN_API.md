@@ -3,17 +3,22 @@
 ## Overview
 Admin endpoints for managing resources and companies, including creation, editing, and archiving (soft delete) functionality.
 
-## Authentication
-All admin endpoints require an API key to be passed in the `Authorization` header:
+## Authentication (BE-011)
+Admin endpoints require a valid **Supabase user JWT** with `app_metadata.role` set to `"admin"`. Pass the access token in the `Authorization` header:
 
 ```
-Authorization: Bearer YOUR_ADMIN_API_KEY
+Authorization: Bearer <supabase_access_token>
 ```
 
-## Environment Variable
-Set the following environment variable:
+The API verifies JWTs locally when `SUPABASE_JWT_SECRET` is set (recommended for production). Otherwise it validates the token via the Supabase Auth `/user` endpoint (requires `SUPABASE_URL` and a publishable or anon key).
+
+All routes below are mounted under the `/api` prefix (for example `POST /api/admin/resources`).
+
+## Environment Variables
 ```bash
-ADMIN_API_KEY=your-secure-api-key-here
+SUPABASE_JWT_SECRET=<project_jwt_secret>   # enables local JWT verification (HS256)
+SUPABASE_URL=https://<project>.supabase.co # required if JWT secret is not set
+SUPABASE_PUBLISHABLE_KEY=...               # or SUPABASE_ANON_KEY
 ```
 
 ## Endpoints
@@ -24,7 +29,7 @@ ADMIN_API_KEY=your-secure-api-key-here
 ```
 POST /admin/resources
 Content-Type: application/json
-Authorization: Bearer YOUR_ADMIN_API_KEY
+Authorization: Bearer <supabase_access_token>
 
 {
   "title": "Resource Title",
@@ -61,7 +66,7 @@ Authorization: Bearer YOUR_ADMIN_API_KEY
 ```
 PATCH /admin/resources/:id
 Content-Type: application/json
-Authorization: Bearer YOUR_ADMIN_API_KEY
+Authorization: Bearer <supabase_access_token>
 
 {
   "title": "Updated Title",
@@ -82,7 +87,7 @@ Authorization: Bearer YOUR_ADMIN_API_KEY
 #### Archive Resource
 ```
 POST /admin/resources/:id/archive
-Authorization: Bearer YOUR_ADMIN_API_KEY
+Authorization: Bearer <supabase_access_token>
 ```
 
 **Response (200 OK):**
@@ -99,7 +104,7 @@ Authorization: Bearer YOUR_ADMIN_API_KEY
 ```
 PATCH /admin/companies/:id
 Content-Type: application/json
-Authorization: Bearer YOUR_ADMIN_API_KEY
+Authorization: Bearer <supabase_access_token>
 
 {
   "startup_name": "Updated Company Name",
@@ -129,7 +134,7 @@ Authorization: Bearer YOUR_ADMIN_API_KEY
 #### Archive Company
 ```
 POST /admin/companies/:id/archive
-Authorization: Bearer YOUR_ADMIN_API_KEY
+Authorization: Bearer <supabase_access_token>
 ```
 
 **Response (200 OK):**

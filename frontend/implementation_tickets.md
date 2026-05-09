@@ -58,7 +58,7 @@ Estimate: 1 day
 Dependencies: FE-005
 Acceptance Criteria:
 1. All required fields are displayed cleanly.
-2. Job postings and media gallery render correctly.
+2. Media gallery renders correctly when URLs are present.
 3. External links are validated and safe.
 4. Company details are fetched from backend detail endpoint.
 
