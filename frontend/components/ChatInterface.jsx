@@ -96,9 +96,13 @@ export default function ChatInterface() {
         id: Date.now() + 1,
         role: "assistant",
         content: response.assistantMessage,
+        ...(response.followUpQuestion
+          ? { followUpQuestion: response.followUpQuestion }
+          : {}),
         timestamp: Date.now(),
         recommendations: formatRecommendations(response.recommendations),
-        streaming: true // Enable animation for latest message
+        // Avoid streaming when a follow-up is shown so the question is readable immediately
+        streaming: !response.followUpQuestion
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -184,8 +188,16 @@ export default function ChatInterface() {
         </Alert>
       )}
 
-      {/* Message thread */}
-      <Box sx={{ flex: 1, overflow: "hidden" }}>
+      {/* Message thread: flex column + minHeight 0 so the child can shrink and scroll */}
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden"
+        }}
+      >
         <ChatMessageThread
           messages={messages}
           isLoading={isLoading}

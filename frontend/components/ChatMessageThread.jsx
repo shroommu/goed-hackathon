@@ -36,6 +36,7 @@ export default function ChatMessageThread({ messages, isLoading, showWelcome }) 
       <Box
         sx={{
           flex: 1,
+          minHeight: 0,
           overflowY: "auto",
           py: 3,
           px: { xs: 2, sm: 3 }
@@ -54,6 +55,7 @@ export default function ChatMessageThread({ messages, isLoading, showWelcome }) 
       ref={threadRef}
       sx={{
         flex: 1,
+        minHeight: 0,
         overflowY: "auto",
         overflowX: "hidden",
         py: 3,
