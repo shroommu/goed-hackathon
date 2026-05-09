@@ -54,3 +54,6 @@ out/
 .vscode/
 .idea/
 .DS_Store
+
+# agents
+.agents/

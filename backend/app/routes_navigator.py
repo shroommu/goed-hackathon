@@ -423,16 +423,21 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
             # Search for candidate resources
             try:
                 candidates = search_resources(context, message)
+                logger.info(f"Found {len(candidates)} candidates for message: {message}")
             except Exception as e:
                 logger.error("Failed to search resources: %s", e, exc_info=True)
                 # Return deterministic response without database
+                error_msg = "I'm here to help you find entrepreneurship resources. Could you tell me more about what you're looking for?"
+                if current_app.config.get("DEBUG"):
+                    error_msg = f"Database error: {type(e).__name__}: {str(e)}"
                 return (
                     jsonify(
                         {
-                            "assistant_message": "I'm here to help you find entrepreneurship resources. Could you tell me more about what you're looking for? For example, are you seeking funding, mentorship, training programs, or networking opportunities?",
+                            "assistant_message": error_msg,
                             "derived_context": context,
                             "recommendations": [],
                             "follow_up_question": "What type of support are you looking for?",
+                            "debug_error": str(e) if current_app.config.get("DEBUG") else None,
                         }
                     ),
                     200,
@@ -440,6 +445,7 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
 
             # If no candidates found, return helpful message
             if not candidates:
+                logger.warning(f"No candidates found for message '{message}' with context {context}")
                 return (
                     jsonify(
                         {
@@ -447,10 +453,13 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                             "derived_context": context,
                             "recommendations": [],
                             "follow_up_question": "What stage is your business at? (e.g., idea, pre-seed, startup, growth)",
+                            "debug_info": {"candidates_found": 0, "search_attempted": True},
                         }
                     ),
                     200,
                 )
+            
+            logger.info(f"Processing {len(candidates)} candidates with LLM")
 
             # Try to use LLM
             llm_client = get_llm_client()
