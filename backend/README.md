@@ -214,3 +214,117 @@ All BE-006 endpoints return errors in a consistent format:
 
 Additional code used by resource endpoints:
 - `resource_not_found`
+
+- `GET /companies`
+  - Query params:
+    - `page` (optional, default `1`, minimum `1`)
+    - `per_page` (optional, default `20`, minimum `1`, maximum `100`)
+    - `sector` (optional substring filter)
+    - `size` (optional enum: `micro`, `small`, `medium`, `large`, `enterprise`)
+    - `stage` (optional enum: `idea`, `pre-seed`, `seed`, `series-a`, `series-b`, `series-c`, `growth`, `late-stage`, `public`, `unknown`)
+    - `hiring_status` (optional enum: `hiring`, `selective`, `not_hiring`, `unknown`)
+    - `location` (optional substring filter against address/location fields)
+  - Returns JSON:
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "Acme Robotics",
+      "website": "https://example.com/acme-robotics",
+      "employee_count": 48,
+      "size": "small",
+      "sector": "Robotics",
+      "stage": "series-a",
+      "hiring_status": "hiring",
+      "year_founded": 2020,
+      "linkedin_url": "https://www.linkedin.com/company/acme-robotics",
+      "description": "Builds warehouse automation tooling for logistics teams.",
+      "address": "2400 Foothill Dr, Salt Lake City, UT, 84109",
+      "location": {
+        "city": "Salt Lake City",
+        "county": "Salt Lake",
+        "state": "UT",
+        "postal_code": "84109",
+        "latitude": 40.7243,
+        "longitude": -111.8227
+      },
+      "job_postings": [
+        "https://example.com/acme-robotics/jobs"
+      ],
+      "photo_gallery": []
+    }
+  ],
+  "mindmap": {
+    "levels": ["sector", "stage", "company"],
+    "sectors": [
+      {
+        "name": "Robotics",
+        "stages": [
+          {
+            "name": "series-a",
+            "companies": [
+              {
+                "id": 1,
+                "name": "Acme Robotics"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "pagination": {
+    "page": 1,
+    "per_page": 20,
+    "total": 1,
+    "total_pages": 1
+  },
+  "filters": {
+    "sector": "Robotics",
+    "size": "small",
+    "stage": "series-a",
+    "hiring_status": "hiring",
+    "location": "Salt Lake"
+  }
+}
+```
+
+- `GET /companies/<company_id>`
+  - Returns JSON:
+
+```json
+{
+  "item": {
+    "id": 1,
+    "name": "Acme Robotics",
+    "website": "https://example.com/acme-robotics",
+    "employee_count": 48,
+    "size": "small",
+    "sector": "Robotics",
+    "stage": "series-a",
+    "hiring_status": "hiring",
+    "year_founded": 2020,
+    "linkedin_url": "https://www.linkedin.com/company/acme-robotics",
+    "description": "Builds warehouse automation tooling for logistics teams.",
+    "address": "2400 Foothill Dr, Salt Lake City, UT, 84109",
+    "location": {
+      "city": "Salt Lake City",
+      "county": "Salt Lake",
+      "state": "UT",
+      "postal_code": "84109",
+      "latitude": 40.7243,
+      "longitude": -111.8227
+    },
+    "job_postings": [
+      "https://example.com/acme-robotics/jobs"
+    ],
+    "photo_gallery": []
+  }
+}
+```
+
+Additional codes used by company endpoints:
+- `company_not_found`
+- `companies_not_found`

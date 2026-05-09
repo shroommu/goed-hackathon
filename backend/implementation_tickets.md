@@ -50,7 +50,7 @@ Acceptance Criteria:
 2. Pagination and filtering are supported.
 3. Error responses are consistent and documented.
 
-### BE-007 Company map and filtered mindmap API endpoints
+### BE-007 Company map and filtered mindmap API endpoints [COMPLETED]
 Estimate: 2 days
 Dependencies: BE-004
 Acceptance Criteria:
