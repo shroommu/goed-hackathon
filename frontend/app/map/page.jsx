@@ -476,7 +476,14 @@ function MapPageContent() {
                 </Stack>
 
                 {selectedCompany.description && (
-                  <Typography color="text.secondary">{selectedCompany.description}</Typography>
+                  <Typography color="text.secondary" sx={{ 
+                    display: "-webkit-box",
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden"
+                  }}>
+                    {selectedCompany.description}
+                  </Typography>
                 )}
 
                 <Divider />
@@ -497,6 +504,16 @@ function MapPageContent() {
                 <Typography variant="body2" color="text.secondary">
                   Photo gallery items: {selectedCompany.photo_gallery.length}
                 </Typography>
+
+                <Button 
+                  component={Link} 
+                  href={`/companies/${selectedCompany.id}`}
+                  variant="contained"
+                  fullWidth
+                  sx={{ mt: 1 }}
+                >
+                  View Full Profile
+                </Button>
               </Stack>
             )}
           </CardContent>

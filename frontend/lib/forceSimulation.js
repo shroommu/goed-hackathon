@@ -266,13 +266,14 @@ export function createBubbleSimulation(bubbles, width, height) {
     .force(
       "collision",
       forceCollide()
-        .radius((d) => d.radius + 20)
-        .strength(0.9),
+        .radius((d) => d.radius + 30) // Increased padding to prevent overlap
+        .strength(1.0) // Maximum strength for perfect collision prevention
+        .iterations(3), // More collision resolution iterations
     )
     .force("x", forceX(width / 2).strength(0.05))
     .force("y", forceY(height / 2).strength(0.05))
-    .alphaDecay(0.02) // Slow decay for smoother settling
-    .velocityDecay(0.3); // Some friction
+    .alphaDecay(0.015) // Even slower decay for better settling
+    .velocityDecay(0.4); // Balanced friction
 
   return { simulation, nodes };
 }
@@ -321,8 +322,9 @@ export function createCompanySimulation(
       "collision",
       forceCollide()
         .radius(COMPANY_ICON_RADIUS + COMPANY_SPACING)
-        .strength(1.0),
-    ) // Stronger collision with proper spacing
+        .strength(1.0)
+        .iterations(3), // Multiple collision iterations for perfect separation
+    )
     .force("constrain", constrainToBubble)
     .alphaDecay(0.03) // Slower decay for better settling
     .velocityDecay(0.5); // More friction for stability
