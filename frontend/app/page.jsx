@@ -88,7 +88,7 @@ export default function HomePage() {
               </Typography>
               <Button
                 component={Link}
-                href="/map?entry=landing&mode=investor"
+                href="http://localhost:8787"
                 variant="contained"
                 color="primary"
                 size="large"

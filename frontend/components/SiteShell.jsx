@@ -22,7 +22,7 @@ import { useState } from "react";
 
 const navLinks = [
   { href: "/navigator", label: "Start Your Journey" },
-  { href: "/map", label: "Explore Ecosystem" },
+  { href: "http://localhost:8787", label: "Explore Ecosystem" },
   { href: "#how-it-works", label: "Resources" },
   { href: "#get-started", label: "Get Started" }
 ];

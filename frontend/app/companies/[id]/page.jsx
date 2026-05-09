@@ -119,7 +119,7 @@ export default function CompanyProfilePage() {
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
-          <Button component={Link} href="/map" variant="contained">
+          <Button component={Link} href="http://localhost:8787" variant="contained">
             Back to Map
           </Button>
         </Box>
@@ -134,7 +134,7 @@ export default function CompanyProfilePage() {
           <Alert severity="warning" sx={{ mb: 2 }}>
             Company not found
           </Alert>
-          <Button component={Link} href="/map" variant="contained">
+          <Button component={Link} href="http://localhost:8787" variant="contained">
             Back to Map
           </Button>
         </Box>
@@ -151,7 +151,7 @@ export default function CompanyProfilePage() {
         <Box sx={{ mb: 3 }}>
           <Button
             component={Link}
-            href="/map"
+            href="http://localhost:8787"
             variant="text"
             sx={{ mb: 2 }}
           >
