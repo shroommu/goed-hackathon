@@ -82,107 +82,11 @@ function hasCoordinates(company) {
   return typeof company.latitude === "number" && typeof company.longitude === "number";
 }
 
-function buildCompanyNodes(stageCompanies, selectedCompanyId) {
-  const cappedCompanies = stageCompanies.slice(0, 8);
-  const selectedCompany = stageCompanies.find((item) => item.id === selectedCompanyId);
-
-  if (selectedCompany && !cappedCompanies.some((item) => item.id === selectedCompany.id)) {
-    cappedCompanies[cappedCompanies.length - 1] = selectedCompany;
-  }
-
-  return cappedCompanies;
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function buildMindmapGraph(sectors, selectedCompanyId) {
-  const graph = {
-    sectorNodes: [],
-    stageNodes: [],
-    companyNodes: [],
-    summaryNodes: [],
-    edges: []
-  };
-
-  if (!sectors.length) {
-    return graph;
-  }
-
-  sectors.forEach((sectorNode, sectorIndex) => {
-    const sectorY = ((sectorIndex + 1) / (sectors.length + 1)) * 100;
-    const sectorId = `sector:${sectorNode.name}`;
-
-    graph.sectorNodes.push({
-      id: sectorId,
-      label: sectorNode.name,
-      x: 14,
-      y: sectorY
-    });
-
-    const stages = sectorNode.stages || [];
-    const stageBandSize = 22;
-    const stageStart = sectorY - stageBandSize / 2;
-    const stageStep = stages.length > 1 ? stageBandSize / (stages.length - 1) : 0;
-
-    stages.forEach((stageNode, stageIndex) => {
-      const stageY = clamp(stageStart + stageIndex * stageStep, 6, 94);
-      const stageId = `${sectorId}:stage:${stageNode.name}`;
-
-      graph.stageNodes.push({
-        id: stageId,
-        sectorName: sectorNode.name,
-        label: stageNode.name,
-        x: 48,
-        y: stageY
-      });
-
-      graph.edges.push({ from: sectorId, to: stageId });
-
-      const stageCompanies = stageNode.companies || [];
-      const displayCompanies = buildCompanyNodes(stageCompanies, selectedCompanyId);
-      const companyBandSize = 18;
-      const companyStart = stageY - companyBandSize / 2;
-      const companyStep = displayCompanies.length > 1 ? companyBandSize / (displayCompanies.length - 1) : 0;
-
-      displayCompanies.forEach((companyNode, companyIndex) => {
-        const companyY = clamp(companyStart + companyIndex * companyStep, 4, 96);
-        const companyId = `${stageId}:company:${companyNode.id}`;
-
-        graph.companyNodes.push({
-          id: companyId,
-          companyId: companyNode.id,
-          sectorName: sectorNode.name,
-          stageName: stageNode.name,
-          label: companyNode.name || "Unnamed company",
-          x: 82,
-          y: companyY
-        });
-
-        graph.edges.push({ from: stageId, to: companyId });
-      });
-
-      if (stageCompanies.length > displayCompanies.length) {
-        graph.summaryNodes.push({
-          id: `${stageId}:summary`,
-          x: 82,
-          y: clamp(stageY + 10, 6, 96),
-          label: `+${stageCompanies.length - displayCompanies.length} more`
-        });
-      }
-    });
-  });
-
-  return graph;
-}
-
 function MapPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const appliedFilters = useMemo(() => parseFiltersFromParams(searchParams), [searchParams]);
   const [draftFilters, setDraftFilters] = useState(appliedFilters);
@@ -199,15 +103,10 @@ function MapPageContent() {
   const [isLoadingCompany, setIsLoadingCompany] = useState(false);
   const [companyError, setCompanyError] = useState("");
 
-  const [mobileSector, setMobileSector] = useState("");
-  const [mobileStage, setMobileStage] = useState("");
-
   const filtersAreActive = hasActiveFilters(appliedFilters);
   const mappedCompanies = companiesPayload.items.filter(hasCoordinates);
   const unmappedCompanies = companiesPayload.items.filter((item) => !hasCoordinates(item));
 
-  const sectors = useMemo(() => companiesPayload.mindmap?.sectors || [], [companiesPayload.mindmap]);
-  const mindmapGraph = useMemo(() => buildMindmapGraph(sectors, selectedCompanyId), [sectors, selectedCompanyId]);
   const utahLeafletBounds = useMemo(
     () => [
       [UTAH_BOUNDS.minLat, UTAH_BOUNDS.minLng],
@@ -277,7 +176,7 @@ function MapPageContent() {
     if (hasActiveFilters(draftFilters)) {
       setActiveView("mindmap");
     } else {
-      setActiveView("map");
+      setActiveView("bubble
     }
   }, [draftFilters]);
 
@@ -325,39 +224,6 @@ function MapPageContent() {
   }, [companiesPayload.items, selectedCompanyId]);
 
   useEffect(() => {
-    const availableSector = sectors.find((sectorNode) => sectorNode.name === mobileSector);
-
-    if (!availableSector) {
-      const preferredSector = sectors.find((sectorNode) =>
-        sectorNode.stages.some((stageNode) =>
-          stageNode.companies.some((companyNode) => companyNode.id === selectedCompanyId)
-        )
-      );
-      const nextSector = preferredSector?.name || sectors[0]?.name || "";
-      setMobileSector(nextSector);
-
-      const nextStage =
-        sectors
-          .find((sectorNode) => sectorNode.name === nextSector)
-          ?.stages.find((stageNode) =>
-            stageNode.companies.some((companyNode) => companyNode.id === selectedCompanyId)
-          )?.name ||
-        sectors.find((sectorNode) => sectorNode.name === nextSector)?.stages[0]?.name ||
-        "";
-      setMobileStage(nextStage);
-      return;
-    }
-
-    const hasStage = availableSector.stages.some((stageNode) => stageNode.name === mobileStage);
-    if (!hasStage) {
-      const preferredStage = availableSector.stages.find((stageNode) =>
-        stageNode.companies.some((companyNode) => companyNode.id === selectedCompanyId)
-      );
-      setMobileStage(preferredStage?.name || availableSector.stages[0]?.name || "");
-    }
-  }, [sectors, mobileSector, mobileStage, selectedCompanyId]);
-
-  const updateSearchParams = useCallback(
     (nextFilters) => {
       const params = new URLSearchParams(searchParams.toString());
 
@@ -428,7 +294,7 @@ function MapPageContent() {
     <SiteShell>
       <Box component="section" aria-labelledby="map-title" sx={{ maxWidth: "52rem" }}>
         <Typography variant="overline" sx={{ letterSpacing: "0.08em", fontWeight: 700, color: "text.secondary" }}>
-          Utah Startup Explorer
+          Utah Startububblerer
         </Typography>
         <Typography id="map-title" variant="h1" sx={{ mt: 1, mb: 2, fontSize: { xs: "2rem", md: "3rem" } }}>
           Switch between geo-cluster map and sector mindmap without losing filter context.
@@ -442,20 +308,7 @@ function MapPageContent() {
         <CardContent sx={{ p: 3 }}>
           <Stack
             component="form"
-            onSubmit={handleApplyFilters}
-            spacing={2}
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" }
-            }}
-          >
-            <TextField
-              label="Sector"
-              value={draftFilters.sector}
-              onChange={(event) => setDraftFilters((prev) => ({ ...prev, sector: event.target.value }))}
-              placeholder="ex: HealthTech"
-            />
-            <TextField
+   
               select
               label="Company size"
               value={draftFilters.size}
@@ -477,10 +330,10 @@ function MapPageContent() {
               <MenuItem value="">Any</MenuItem>
               {STAGE_OPTIONS.map((value) => (
                 <MenuItem key={value} value={value}>
-                  {formatValue(value)}
-                </MenuItem>
-              ))}
-            </TextField>
+          Explore Utah startups with map and bubble views
+        </Typography>
+        <Typography variant="body1" sx={{ color: "text.secondary" }}>
+          Filter by sector, company size, stage, or location. Switch between geographic map view and interactive bubble visualization to explore the startup ecosystem
             <TextField
               label="Location"
               value={draftFilters.location}
@@ -564,11 +417,11 @@ function MapPageContent() {
             ) : activeView === "map" ? (
               <Box
                 sx={{
-                  opacity: activeView === "map" ? 1 : 0,
-                  transform: activeView === "map" ? "scale(1)" : "scale(0.95)",
-                  transition: "opacity 0.4s ease, transform 0.4s ease"
-                }}
-              >
+                  opacity: activeView =bubble" ? "contained" : "outlined"}
+              onClick={() => setActiveView("bubble")}
+              aria-pressed={activeView === "bubble"}
+            >
+              Bubble
                 <LeafletClusterMap
                   mappedCompanies={mappedCompanies}
                   unmappedCompanies={unmappedCompanies}
@@ -590,193 +443,14 @@ function MapPageContent() {
                 <Typography variant="h2" sx={{ fontSize: "1.25rem" }}>
                   Mobile drill-down
                 </Typography>
-                <TextField
-                  select
-                  label="Sector"
-                  value={mobileSector}
-                  onChange={(event) => setMobileSector(event.target.value)}
-                >
-                  {sectors.map((sectorNode) => (
-                    <MenuItem key={sectorNode.name} value={sectorNode.name}>
-                      {sectorNode.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <TextField
-                  select
-                  label="Stage"
-                  value={mobileStage}
-                  onChange={(event) => setMobileStage(event.target.value)}
-                  disabled={!mobileSelectedSector}
-                >
-                  {(mobileSelectedSector?.stages || []).map((stageNode) => (
-                    <MenuItem key={stageNode.name} value={stageNode.name}>
-                      {stageNode.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-
-                <Stack spacing={1}>
-                  {(mobileSelectedStage?.companies || []).map((companyNode) => (
-                    <Button
-                      key={companyNode.id}
-                      variant={selectedCompanyId === companyNode.id ? "contained" : "outlined"}
-                      onClick={() => setSelectedCompanyId(companyNode.id)}
-                      sx={{ justifyContent: "flex-start" }}
-                    >
-                      {companyNode.name || "Unnamed company"}
-                    </Button>
-                  ))}
-                </Stack>
-              </Stack>
-            ) : (
-              <Box
-                role="region"
-                aria-label="Sector to stage to company connected mindmap"
-                sx={{
-                  position: "relative",
-                  height: 500,
-                  borderRadius: 2,
-                  border: "1px solid #d7d2c7",
-                  overflow: "hidden",
-                  background:
-                    "radial-gradient(circle at 14% 20%, rgb(252 163 17 / 18%) 0%, rgb(252 163 17 / 0) 44%), linear-gradient(180deg, #fffef9 0%, #f6f1e7 100%)"
-                }}
-              >
-                <svg aria-hidden="true" width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  {mindmapGraph.edges.map((edge) => {
-                    const fromNode =
-                      [...mindmapGraph.sectorNodes, ...mindmapGraph.stageNodes, ...mindmapGraph.companyNodes].find(
-                        (node) => node.id === edge.from
-                      ) || null;
-                    const toNode =
-                      [...mindmapGraph.sectorNodes, ...mindmapGraph.stageNodes, ...mindmapGraph.companyNodes].find(
-                        (node) => node.id === edge.to
-                      ) || null;
-
-                    if (!fromNode || !toNode) {
-                      return null;
-                    }
-
-                    return (
-                      <path
-                        key={`${edge.from}:${edge.to}`}
-                        d={`M ${fromNode.x} ${fromNode.y} C ${(fromNode.x + toNode.x) / 2} ${fromNode.y}, ${(fromNode.x + toNode.x) / 2} ${toNode.y}, ${toNode.x} ${toNode.y}`}
-                        stroke="rgba(20, 33, 61, 0.28)"
-                        strokeWidth="0.35"
-                        fill="none"
-                      />
-                    );
-                  })}
-                </svg>
-
-                {mindmapGraph.sectorNodes.map((node) => (
-                  <Chip
-                    key={node.id}
-                    label={node.label}
-                    size="small"
-                    color={desktopSelectedSector?.name === node.label ? "secondary" : "default"}
-                    onClick={() => {
-                      const sectorNode = sectors.find((item) => item.name === node.label);
-                      const firstCompany = sectorNode?.stages?.[0]?.companies?.[0];
-                      if (firstCompany) {
-                        setSelectedCompanyId(firstCompany.id);
-                      }
-                    }}
-                    sx={{
-                      position: "absolute",
-                      left: `${node.x}%`,
-                      top: `${node.y}%`,
-                      transform: "translate(-50%, -50%)",
-                      maxWidth: 170,
-                      backgroundColor: "#ece6d8"
-                    }}
-                  />
-                ))}
-
-                {mindmapGraph.stageNodes.map((node) => (
-                  <Button
-                    key={node.id}
-                    size="small"
-                    variant={
-                      desktopSelectedStage?.name === node.label && desktopSelectedSector?.name === node.sectorName
-                        ? "contained"
-                        : "outlined"
-                    }
-                    onClick={() => {
-                      const sectorNode = sectors.find((item) => item.name === node.sectorName);
-                      const stageNode = sectorNode?.stages?.find((item) => item.name === node.label);
-                      const firstCompany = stageNode?.companies?.[0];
-                      if (firstCompany) {
-                        setSelectedCompanyId(firstCompany.id);
-                      }
-                    }}
-                    sx={{
-                      position: "absolute",
-                      left: `${node.x}%`,
-                      top: `${node.y}%`,
-                      transform: "translate(-50%, -50%)",
-                      textTransform: "none",
-                      minWidth: 92,
-                      fontSize: "0.74rem"
-                    }}
-                  >
-                    {node.label}
-                  </Button>
-                ))}
-
-                {mindmapGraph.companyNodes.map((node) => (
-                  <Button
-                    key={node.id}
-                    size="small"
-                    variant={selectedCompanyId === node.companyId ? "contained" : "text"}
-                    onClick={() => setSelectedCompanyId(node.companyId)}
-                    sx={{
-                      position: "absolute",
-                      left: `${node.x}%`,
-                      top: `${node.y}%`,
-                      transform: "translate(-50%, -50%)",
-                      textTransform: "none",
-                      justifyContent: "flex-start",
-                      maxWidth: 190,
-                      fontSize: "0.72rem",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis"
-                    }}
-                  >
-                    {node.label}
-                  </Button>
-                ))}
-
-                {mindmapGraph.summaryNodes.map((node) => (
-                  <Chip
-                    key={node.id}
-                    label={node.label}
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      position: "absolute",
-                      left: `${node.x}%`,
-                      top: `${node.y}%`,
-                      transform: "translate(-50%, -50%)"
-                    }}
-                  />
-                ))}
-              </Box>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent sx={{ p: 3 }}>
-            <Typography variant="h2" sx={{ fontSize: "1.2rem", mb: 1.5 }}>
-              Company detail
-            </Typography>
-
-            {!selectedCompanyId && (
-              <Typography color="text.secondary">
-                Select a marker or mindmap node to load company profile details from the backend detail endpoint.
+                (
+              <BubbleClusterView
+                companiesPayload={companiesPayload}
+                filters={appliedFilters}
+                selectedCompanyId={selectedCompanyId}
+                onSelectCompany={setSelectedCompanyId}
+                onClearFilters={handleClearFilters}
+              /ect a marker or mindmap node to load company profile details from the backend detail endpoint.
               </Typography>
             )}
 
