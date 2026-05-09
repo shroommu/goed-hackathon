@@ -59,7 +59,7 @@ Acceptance Criteria:
 3. Filter validation and error responses are consistent for invalid values, invalid paging, and empty results.
 4. Company details include all required profile fields.
 
-### BE-008 Self-service listing and claim workflow
+### BE-008 Self-service listing and claim workflow [COMPLETED]
 Estimate: 2 days
 Dependencies: BE-007
 Acceptance Criteria:
@@ -75,7 +75,7 @@ Acceptance Criteria:
 2. Unverified claims cannot publish protected changes.
 3. Admin can approve or reject claims.
 
-### BE-010 Admin content update endpoints
+### BE-010 Admin content update endpoints [COMPLETED]
 Estimate: 1 day
 Dependencies: BE-006, BE-007
 Acceptance Criteria:

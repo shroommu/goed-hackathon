@@ -140,6 +140,7 @@ def _supabase_list_resources(
         "order": "id.asc",
         "limit": per_page,
         "offset": (page - 1) * per_page,
+        "archived": "eq.false",
     }
 
     if communities:
@@ -227,6 +228,7 @@ def _supabase_get_resource(resource_id: int):
     params = {
         "select": "id,Title,description,Communities,Industries,Locations,Topics,link,email",
         "id": f"eq.{resource_id}",
+        "archived": "eq.false",
         "limit": 1,
     }
 
@@ -300,7 +302,7 @@ def register_resource_routes(app: Flask) -> None:
         topics = request.args.get("topics")
         search = request.args.get("search")
 
-        query = Resource.query
+        query = Resource.query.filter_by(archived=False)
 
         if communities:
             query = query.filter(Resource.communities.ilike(f"%{communities.strip()}%"))
@@ -369,7 +371,7 @@ def register_resource_routes(app: Flask) -> None:
     @app.get("/resources/<int:resource_id>")
     def get_resource(resource_id: int):
         try:
-            resource = Resource.query.filter_by(id=resource_id).one_or_none()
+            resource = Resource.query.filter_by(id=resource_id, archived=False).one_or_none()
         except OperationalError:
             return _supabase_get_resource(resource_id)
 

@@ -13,6 +13,7 @@ class Resource(db.Model):
     topics = db.Column("Topics", db.Text, nullable=True)
     link = db.Column(db.Text, nullable=True)
     email = db.Column(db.Text, nullable=True)
+    archived = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
 
 
 class Company(db.Model):
@@ -30,6 +31,7 @@ class Company(db.Model):
     sector = db.Column(db.Text, nullable=True)
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
+    archived = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
 
 
 class ClaimRequest(db.Model):
