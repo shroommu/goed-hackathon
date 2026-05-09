@@ -290,7 +290,7 @@ Required context for good recommendations:
 
 Your task is to:
 1. Extract context from the user's message (stage, industry, location, objectives, topics, challenges)
-2. **IF CONTEXT IS INSUFFICIENT**: Ask a clarifying follow-up question and provide 0-2 general resources
+2. **IF CONTEXT IS INSUFFICIENT**: Ask clarifying questions in assistant_message and provide 0-2 general resources
 3. **IF CONTEXT IS SUFFICIENT**: Select the top 5 most relevant resources from the provided candidate list
 4. Generate personalized rationales explaining why each resource matches the user's needs
 5. Respond naturally and conversationally
@@ -325,8 +325,7 @@ Output your response as JSON with this structure:
       "id": 123,
       "rationale": "Personalized explanation of why this resource matches"
     }}
-  ],
-  "follow_up_question": "Clarifying question when critical context is missing (REQUIRED if less than 2 recommendations)"
+  ]
 }}
 
 EXAMPLES:
@@ -361,7 +360,7 @@ def generate_llm_response(
         llm_client: LangChain ChatOpenAI client
 
     Returns:
-        Dictionary with assistant_message, derived_context, recommendations, and optional follow_up_question
+        Dictionary with assistant_message, derived_context, and recommendations
     """
     # Format candidates for the prompt
     candidate_list = []
@@ -515,8 +514,7 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
         {
             "assistant_message": "string",
             "derived_context": {...},
-            "recommendations": [...],
-            "follow_up_question": "string (optional)"
+            "recommendations": [...]
         }
         """
         try:
@@ -571,7 +569,6 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                             "assistant_message": "I'm here to help you find entrepreneurship resources. Could you tell me more about what you're looking for?",
                             "derived_context": context,
                             "recommendations": [],
-                            "follow_up_question": "What type of support are you looking for?",
                         }
                     ),
                     200,
@@ -585,10 +582,9 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                 return (
                     jsonify(
                         {
-                            "assistant_message": "I couldn't find specific resources matching your needs yet. Let me ask a few questions to help narrow it down. What stage is your business at?",
+                            "assistant_message": "I couldn't find specific resources matching your needs yet. Let me ask a few questions to help narrow it down. What stage is your business at? (e.g., idea, pre-seed, startup, growth)",
                             "derived_context": context,
                             "recommendations": [],
-                            "follow_up_question": "What stage is your business at? (e.g., idea, pre-seed, startup, growth)",
                         }
                     ),
                     200,
@@ -642,11 +638,6 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                         "derived_context": llm_response.get("derived_context", context),
                         "recommendations": enriched_recommendations,
                     }
-
-                    if llm_response.get("follow_up_question"):
-                        response_data["follow_up_question"] = llm_response[
-                            "follow_up_question"
-                        ]
 
                     if _is_validation_debug_enabled():
                         response_data["validation_debug"] = {

@@ -107,13 +107,9 @@ export default function ChatInterface() {
         id: Date.now() + 1,
         role: "assistant",
         content: response.assistantMessage,
-        ...(response.followUpQuestion
-          ? { followUpQuestion: response.followUpQuestion }
-          : {}),
         timestamp: Date.now(),
         recommendations: formatRecommendations(response.recommendations),
-        // Avoid streaming when a follow-up is shown so the question is readable immediately
-        streaming: !response.followUpQuestion
+        streaming: true
       };
 
       setMessages((prev) => [...prev, assistantMessage]);

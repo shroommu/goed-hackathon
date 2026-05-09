@@ -58,7 +58,6 @@ export async function sendChatMessage(message, context = {}) {
       assistantMessage: data.assistant_message,
       derivedContext: data.derived_context || {},
       recommendations: data.recommendations || [],
-      followUpQuestion: data.follow_up_question || null,
     };
   } catch (error) {
     // Enhance error with user-friendly messages

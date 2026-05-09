@@ -34,7 +34,6 @@ class Be016SafetyTests(unittest.TestCase):
             "assistant_message": "Tell me more about your goals.",
             "derived_context": {},
             "recommendations": [],
-            "follow_up_question": "What stage is your business at?",
         }
         with patch("app.routes_navigator.search_resources", return_value=candidates) as mock_search, patch(
             "app.routes_navigator.get_llm_client", return_value=object()
@@ -50,8 +49,7 @@ class Be016SafetyTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         mock_search.assert_called_once()
         self.assertEqual(body["recommendations"], [])
-        self.assertIn("follow_up_question", body)
-        self.assertEqual(body["follow_up_question"], "What stage is your business at?")
+        self.assertNotIn("follow_up_question", body)
 
     def test_unknown_resource_id_is_filtered_out(self):
         candidates = [

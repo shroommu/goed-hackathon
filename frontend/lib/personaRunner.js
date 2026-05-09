@@ -25,7 +25,6 @@ export async function runPersona(persona) {
       status: "ok",
       durationMs: Date.now() - startedAt,
       assistantMessage: response.assistantMessage,
-      followUpQuestion: response.followUpQuestion || null,
       derivedContext: response.derivedContext || {},
       recommendations: formatRecommendations(response.recommendations)
     };

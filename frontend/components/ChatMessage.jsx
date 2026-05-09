@@ -25,9 +25,7 @@ export default function ChatMessage({ message, isLatest }) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
 
-  const fullCopyText =
-    message.content +
-    (message.followUpQuestion ? `\n\n${message.followUpQuestion}` : "");
+  const fullCopyText = message.content;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(fullCopyText);
@@ -63,34 +61,6 @@ export default function ChatMessage({ message, isLatest }) {
             <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
               {message.content}
             </Typography>
-          )}
-
-          {!isUser && message.followUpQuestion && (
-            <Box
-              sx={{
-                mt: 1.5,
-                pl: 1.5,
-                borderLeft: 3,
-                borderColor: "primary.main",
-                borderRadius: 0.5
-              }}
-            >
-              <Typography
-                variant="caption"
-                component="p"
-                sx={{
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  color: "text.secondary",
-                  mb: 0.5
-                }}
-              >
-                Next question
-              </Typography>
-              <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-                {message.followUpQuestion}
-              </Typography>
-            </Box>
           )}
 
           {/* Recommendations */}

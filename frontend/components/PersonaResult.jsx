@@ -202,28 +202,6 @@ export default function PersonaResult({ persona, result }) {
                   </Typography>
                 </Box>
 
-                {result.followUpQuestion && (
-                  <Box
-                    sx={{
-                      pl: 1.5,
-                      py: 0.5,
-                      borderLeft: 3,
-                      borderColor: "primary.main",
-                      borderRadius: 0.5
-                    }}
-                  >
-                    <Typography variant="caption" sx={sectionLabelSx}>
-                      Follow-up question
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{ whiteSpace: "pre-wrap", lineHeight: 1.5 }}
-                    >
-                      {result.followUpQuestion}
-                    </Typography>
-                  </Box>
-                )}
-
                 <ContextBlock title="Derived context" context={result.derivedContext} />
               </Stack>
             )}
