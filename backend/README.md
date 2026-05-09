@@ -67,6 +67,30 @@ flask --app wsgi:app seed-starter-data \
   --companies data/starter/companies_starter.json
 ```
 
+## BE-003 Resource Ingestion Commands
+
+Import a resource spreadsheet export (JSON or CSV) with row-level validation reporting:
+
+```bash
+flask --app wsgi:app import-resources \
+  --file data/starter/resources_starter.json \
+  --report /tmp/resources_ingest_report.json
+```
+
+Use `--dry-run` to validate without persisting changes:
+
+```bash
+flask --app wsgi:app import-resources \
+  --file data/starter/resources_starter.json \
+  --dry-run
+```
+
+Query imported resources by available metadata columns:
+
+```bash
+flask --app wsgi:app query-resources --locations Utah --topics funding
+```
+
 ## Run in production mode
 
 ```bash

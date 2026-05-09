@@ -42,6 +42,113 @@ def _parse_list_field(value: str | list | None, separator: str = ";") -> list[st
     return [item.strip() for item in value.split(separator) if item.strip()]
 
 
+def _row_get(row: dict, *keys: str) -> str | list | None:
+    for key in keys:
+        if key in row:
+            return row.get(key)
+
+    lowered = {str(key).lower(): value for key, value in row.items()}
+    for key in keys:
+        value = lowered.get(key.lower())
+        if value is not None:
+            return value
+    return None
+
+
+def _normalize_text(value: str | list | None) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, list):
+        joined = "; ".join([str(item).strip() for item in value if str(item).strip()])
+        return joined or None
+    text = str(value).strip()
+    return text or None
+
+
+def _resource_payload_from_row(row: dict) -> dict:
+    title = _normalize_text(_row_get(row, "name", "title", "Title"))
+    if not title:
+        raise ValueError("missing required title/name")
+
+    description = _normalize_text(_row_get(row, "short_description", "description"))
+    link = _normalize_text(_row_get(row, "official_url", "link"))
+    email = _normalize_text(_row_get(row, "email", "Email"))
+
+    communities = _parse_list_field(_row_get(row, "communities", "Communities", "tags"))
+    industries = _parse_list_field(
+        _row_get(row, "industries", "Industries", "category")
+    )
+    locations = _parse_list_field(_row_get(row, "locations", "Locations", "location"))
+    topics = _parse_list_field(_row_get(row, "topics", "Topics", "objective", "tags"))
+
+    return {
+        "title": title,
+        "description": description,
+        "link": link,
+        "email": email,
+        "communities": "; ".join(communities) or None,
+        "industries": "; ".join(industries) or None,
+        "locations": "; ".join(locations) or None,
+        "topics": "; ".join(topics) or None,
+    }
+
+
+def _resource_changed(resource: Resource, payload: dict) -> bool:
+    return any(
+        [
+            resource.description != payload["description"],
+            resource.link != payload["link"],
+            resource.email != payload["email"],
+            resource.communities != payload["communities"],
+            resource.industries != payload["industries"],
+            resource.locations != payload["locations"],
+            resource.topics != payload["topics"],
+        ]
+    )
+
+
+def _upsert_resource_payload(payload: dict) -> tuple[str, Resource]:
+    normalized_title = payload["title"].casefold()
+    resource = Resource.query.filter(
+        func.lower(Resource.title) == normalized_title
+    ).one_or_none()
+
+    if resource is None:
+        resource = Resource(id=_next_resource_id(), title=payload["title"])
+        db.session.add(resource)
+        action = "created"
+    else:
+        action = "updated" if _resource_changed(resource, payload) else "unchanged"
+
+    resource.description = payload["description"]
+    resource.link = payload["link"]
+    resource.email = payload["email"]
+    resource.communities = payload["communities"]
+    resource.industries = payload["industries"]
+    resource.locations = payload["locations"]
+    resource.topics = payload["topics"]
+
+    return action, resource
+
+
+def _build_resource_query(
+    communities: str | None,
+    industries: str | None,
+    locations: str | None,
+    topics: str | None,
+):
+    query = Resource.query
+    if communities:
+        query = query.filter(Resource.communities.ilike(f"%{communities.strip()}%"))
+    if industries:
+        query = query.filter(Resource.industries.ilike(f"%{industries.strip()}%"))
+    if locations:
+        query = query.filter(Resource.locations.ilike(f"%{locations.strip()}%"))
+    if topics:
+        query = query.filter(Resource.topics.ilike(f"%{topics.strip()}%"))
+    return query
+
+
 def _upsert_resource(row: dict) -> Resource:
     title = (row.get("name") or row.get("title") or "").strip()
     if not title:
@@ -118,6 +225,124 @@ def _upsert_company(row: dict) -> Company:
 
 
 def register_seed_command(app: Flask) -> None:
+    @app.cli.command("import-resources")
+    @click.option(
+        "--file",
+        "resources_path",
+        required=True,
+        help="Path to resources import file (JSON or CSV).",
+    )
+    @click.option(
+        "--report",
+        "report_path",
+        default=None,
+        help="Optional path to write a JSON ingestion report.",
+    )
+    @click.option(
+        "--dry-run",
+        is_flag=True,
+        default=False,
+        help="Validate and simulate import without persisting changes.",
+    )
+    def import_resources(
+        resources_path: str, report_path: str | None, dry_run: bool
+    ) -> None:
+        resources_file = Path(resources_path)
+        if not resources_file.exists():
+            raise click.ClickException(f"Resources file not found: {resources_file}")
+
+        rows = _parse_rows(resources_file)
+        created = 0
+        updated = 0
+        unchanged = 0
+        invalid = 0
+        errors: list[dict] = []
+
+        for index, row in enumerate(rows, start=1):
+            try:
+                with db.session.begin_nested():
+                    payload = _resource_payload_from_row(row)
+                    action, _ = _upsert_resource_payload(payload)
+                    db.session.flush()
+
+                if action == "created":
+                    created += 1
+                elif action == "updated":
+                    updated += 1
+                else:
+                    unchanged += 1
+            except Exception as exc:  # noqa: BLE001
+                invalid += 1
+                errors.append(
+                    {
+                        "row": index,
+                        "error": str(exc),
+                        "title": _normalize_text(
+                            _row_get(row, "name", "title", "Title")
+                        ),
+                    }
+                )
+
+        if dry_run:
+            db.session.rollback()
+        else:
+            db.session.commit()
+
+        report = {
+            "file": str(resources_file),
+            "dry_run": dry_run,
+            "rows_total": len(rows),
+            "created": created,
+            "updated": updated,
+            "unchanged": unchanged,
+            "invalid": invalid,
+            "errors": errors,
+        }
+
+        if report_path:
+            output_file = Path(report_path)
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            output_file.write_text(json.dumps(report, indent=2), encoding="utf-8")
+
+        click.echo(
+            "Import complete. "
+            f"rows_total={report['rows_total']}, "
+            f"created={created}, updated={updated}, unchanged={unchanged}, invalid={invalid}"
+        )
+
+        if errors:
+            click.echo("Row-level validation errors:")
+            for item in errors:
+                click.echo(
+                    f"  - row={item['row']}, title={item['title'] or '<missing>'}: {item['error']}"
+                )
+
+    @app.cli.command("query-resources")
+    @click.option("--communities", default=None, help="Filter by Communities field.")
+    @click.option("--industries", default=None, help="Filter by Industries field.")
+    @click.option("--locations", default=None, help="Filter by Locations field.")
+    @click.option("--topics", default=None, help="Filter by Topics field.")
+    @click.option("--limit", default=20, show_default=True, help="Max rows to display.")
+    def query_resources(
+        communities: str | None,
+        industries: str | None,
+        locations: str | None,
+        topics: str | None,
+        limit: int,
+    ) -> None:
+        query = _build_resource_query(communities, industries, locations, topics)
+        rows = query.order_by(Resource.id.asc()).limit(limit).all()
+
+        click.echo(f"Matched {len(rows)} resource(s).")
+        for resource in rows:
+            click.echo(
+                f"  - id={resource.id}, title={resource.title}, "
+                f"communities={resource.communities or '-'}, "
+                f"industries={resource.industries or '-'}, "
+                f"locations={resource.locations or '-'}, "
+                f"topics={resource.topics or '-'}"
+            )
+
     @app.cli.command("seed-starter-data")
     @click.option(
         "--resources",
