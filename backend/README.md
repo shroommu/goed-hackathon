@@ -28,7 +28,16 @@ Set your Supabase Postgres URL in `.env`:
 ```bash
 DATABASE_URL=postgresql://postgres.<project-ref>:<password>@<host>:5432/postgres
 DB_SSLMODE=require
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_SECRET_KEY=<secret-key>
 ```
+
+The app now loads `backend/.env` automatically at startup, so `DATABASE_URL`
+and related settings are used even when they are not exported in your shell.
+
+If direct Postgres connectivity is unavailable (for example IPv4-only runtime
+without Supabase IPv4 add-on), `GET /resources` and `GET /resources/<id>`
+automatically fall back to Supabase Data API (`/rest/v1`) over HTTPS.
 
 ## Run locally (development)
 
@@ -108,8 +117,11 @@ gunicorn --bind 0.0.0.0:${PORT} wsgi:app
 - `PORT`: bind port (default: `5000` local)
 - `DATABASE_URL`: SQLAlchemy database URL (Supabase/Postgres)
 - `DB_SSLMODE`: SSL mode for Postgres connections (recommended: `require`)
+- `SUPABASE_URL`: Supabase project URL for REST fallback (`https://<project-ref>.supabase.co`)
+- `SUPABASE_SECRET_KEY`: server-side key used by REST fallback
+- `SUPABASE_REST_TIMEOUT_SECONDS`: timeout for REST fallback requests (default: `10`)
 
-## Endpoint
+## Endpoints
 
 - `GET /health`
   - Returns JSON:
@@ -121,3 +133,84 @@ gunicorn --bind 0.0.0.0:${PORT} wsgi:app
   "environment": "production"
 }
 ```
+
+- `GET /resources`
+  - Query params:
+    - `page` (optional, default `1`, minimum `1`)
+    - `per_page` (optional, default `20`, minimum `1`, maximum `100`)
+    - `communities` (optional substring filter)
+    - `industries` (optional substring filter)
+    - `locations` (optional substring filter)
+    - `topics` (optional substring filter)
+    - `search` (optional text search across title/description/taxonomy fields)
+  - Returns JSON:
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "title": "Silicon Slopes Community",
+      "description": "Utah startup ecosystem events, networking, and community resources.",
+      "communities": "community; events; startups",
+      "industries": "Community",
+      "locations": "Utah",
+      "topics": "networking; community; events; startups",
+      "link": "https://siliconslopes.com",
+      "email": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 20,
+    "total": 1,
+    "total_pages": 1
+  },
+  "filters": {
+    "communities": null,
+    "industries": null,
+    "locations": "Utah",
+    "topics": null,
+    "search": null
+  }
+}
+```
+
+- `GET /resources/<resource_id>`
+  - Returns JSON:
+
+```json
+{
+  "item": {
+    "id": 1,
+    "title": "Silicon Slopes Community",
+    "description": "Utah startup ecosystem events, networking, and community resources.",
+    "communities": "community; events; startups",
+    "industries": "Community",
+    "locations": "Utah",
+    "topics": "networking; community; events; startups",
+    "link": "https://siliconslopes.com",
+    "email": null
+  }
+}
+```
+
+### Error Response Contract
+
+All BE-006 endpoints return errors in a consistent format:
+
+```json
+{
+  "error": {
+    "code": "invalid_query_parameter",
+    "message": "'page' must be greater than or equal to 1.",
+    "details": {
+      "field": "page",
+      "value": "0"
+    }
+  }
+}
+```
+
+Additional code used by resource endpoints:
+- `resource_not_found`

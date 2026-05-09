@@ -26,7 +26,7 @@ Acceptance Criteria:
 2. Validation reports row-level errors without failing whole import.
 3. Imported resources are queryable by Communities, Industries, Locations, and Topics.
 
-### BE-004 Company data ingestion pipeline
+### BE-004 Company data ingestion pipeline [SKIPPED]
 Estimate: 1 day
 Dependencies: BE-002
 Acceptance Criteria:
@@ -34,15 +34,15 @@ Acceptance Criteria:
 2. Geocoding fallback strategy exists for missing coordinates.
 3. Ingestion summary reports new, updated, and skipped rows.
 
-### BE-005 Founder intake and personalization engine
+### BE-005 Guided onboarding and personalization engine [SKIPPED]
 Estimate: 2 days
 Dependencies: BE-003
 Acceptance Criteria:
-1. Intake payload supports stage, industry, location, and objective.
+1. Onboarding payload supports stage, industry, location, and objective.
 2. Ranked recommendations include explanation for each match.
 3. Distinct personas return meaningfully different top results.
 
-### BE-006 Resource API endpoints
+### BE-006 Resource API endpoints [COMPLETED]
 Estimate: 1 day
 Dependencies: BE-005
 Acceptance Criteria:
