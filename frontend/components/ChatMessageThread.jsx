@@ -5,10 +5,26 @@ import TypingIndicator from "./TypingIndicator";
 
 export default function ChatMessageThread({ messages, isLoading, showWelcome }) {
   const messagesEndRef = useRef(null);
+  const latestResourceMessageRef = useRef(null);
   const threadRef = useRef(null);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll for normal chat flow, but avoid forcing the viewport to the
+  // very bottom when an assistant message contains resource recommendations.
   useEffect(() => {
+    const latestMessage = messages[messages.length - 1];
+    const hasResourceRecommendations =
+      latestMessage?.role === "assistant" &&
+      Array.isArray(latestMessage?.recommendations) &&
+      latestMessage.recommendations.length > 0;
+
+    if (hasResourceRecommendations && latestResourceMessageRef.current) {
+      latestResourceMessageRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+      return;
+    }
+
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
@@ -49,13 +65,23 @@ export default function ChatMessageThread({ messages, isLoading, showWelcome }) 
       aria-live="polite"
     >
       <Box sx={{ width: "100%", maxWidth: "58rem", mx: "auto" }}>
-        {messages.map((message, index) => (
-          <ChatMessage
-            key={message.id || index}
-            message={message}
-            isLatest={index === messages.length - 1}
-          />
-        ))}
+        {messages.map((message, index) => {
+          const isLatest = index === messages.length - 1;
+          const isLatestResourceAssistantMessage =
+            isLatest &&
+            message?.role === "assistant" &&
+            Array.isArray(message?.recommendations) &&
+            message.recommendations.length > 0;
+
+          return (
+            <Box
+              key={message.id || index}
+              ref={isLatestResourceAssistantMessage ? latestResourceMessageRef : null}
+            >
+              <ChatMessage message={message} isLatest={isLatest} />
+            </Box>
+          );
+        })}
 
         {isLoading && <TypingIndicator />}
 
