@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 import requests
 from flask import Flask, jsonify, request
 from sqlalchemy import text
-from sqlalchemy.exc import NoSuchTableError, OperationalError
+from sqlalchemy.exc import IntegrityError, NoSuchTableError, OperationalError
 
 from .extensions import db
 
@@ -48,6 +48,20 @@ PROTECTED_COMPANY_FIELDS = {
     "full_address",
     "linkedin",
 }
+
+CLAIM_STATUS_PENDING = "pending"
+CLAIM_STATUS_VERIFIED = "verified"
+CLAIM_STATUS_REJECTED = "rejected"
+CLAIM_STATUS_VALUES = {
+    CLAIM_STATUS_PENDING,
+    CLAIM_STATUS_VERIFIED,
+    CLAIM_STATUS_REJECTED,
+}
+CLAIM_DECISION_TO_STATUS = {
+    "approve": CLAIM_STATUS_VERIFIED,
+    "reject": CLAIM_STATUS_REJECTED,
+}
+ADMIN_ROLE_VALUES = {"admin", "goed_admin", "super_admin"}
 
 
 def _error_response(status: int, code: str, message: str, details: dict | None = None):
@@ -147,6 +161,26 @@ def _extract_domain(raw_website: str | None) -> str | None:
     return host or None
 
 
+def _normalize_role_values(raw: object) -> set[str]:
+    if raw is None:
+        return set()
+    if isinstance(raw, str):
+        value = raw.strip().lower()
+        return {value} if value else set()
+    if isinstance(raw, (list, tuple, set)):
+        values: set[str] = set()
+        for item in raw:
+            if isinstance(item, str) and item.strip():
+                values.add(item.strip().lower())
+        return values
+    return set()
+
+
+def _admin_emails_from_env() -> set[str]:
+    configured = os.getenv("ADMIN_EMAILS", "")
+    return {email.strip().lower() for email in configured.split(",") if email.strip()}
+
+
 def _supabase_auth_api_key() -> str | None:
     return (
         os.getenv("SUPABASE_PUBLISHABLE_KEY")
@@ -211,10 +245,28 @@ def _verify_supabase_token(token: str):
             401, "invalid_auth_token", "Auth token did not include user id."
         )
 
+    user_email = user.get("email")
+    app_metadata = user.get("app_metadata")
+    user_metadata = user.get("user_metadata")
+    app_metadata = app_metadata if isinstance(app_metadata, dict) else {}
+    user_metadata = user_metadata if isinstance(user_metadata, dict) else {}
+
+    roles = set()
+    roles.update(_normalize_role_values(app_metadata.get("role")))
+    roles.update(_normalize_role_values(app_metadata.get("roles")))
+    roles.update(_normalize_role_values(user_metadata.get("role")))
+    roles.update(_normalize_role_values(user_metadata.get("roles")))
+
+    is_admin = bool(roles.intersection(ADMIN_ROLE_VALUES))
+    if isinstance(user_email, str) and user_email.strip():
+        is_admin = is_admin or user_email.strip().lower() in _admin_emails_from_env()
+
     return (
         {
             "id": user_id,
-            "email": user.get("email"),
+            "email": user_email,
+            "roles": sorted(roles),
+            "is_admin": is_admin,
         },
         None,
     )
@@ -238,6 +290,143 @@ def _require_authenticated_user():
         )
 
     return _verify_supabase_token(token)
+
+
+def _require_admin_user():
+    user, error = _require_authenticated_user()
+    if error:
+        return None, error
+    if not user.get("is_admin"):
+        return None, _error_response(
+            403,
+            "admin_required",
+            "This action requires admin privileges.",
+            {"user_id": user.get("id")},
+        )
+    return user, None
+
+
+def _claim_status_from_row(row: dict) -> str | None:
+    raw_status = row.get("status")
+    if raw_status is None:
+        raw_status = row.get("STATUS")
+    if raw_status is None:
+        return None
+    status_text = str(raw_status).strip().lower()
+    return status_text or None
+
+
+def _claim_requested_updates(row: dict) -> dict:
+    raw = row.get("requested_updates")
+    if raw is None:
+        return {}
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        text_value = raw.strip()
+        if not text_value:
+            return {}
+        try:
+            decoded = json.loads(text_value)
+        except json.JSONDecodeError:
+            return {}
+        if isinstance(decoded, dict):
+            return decoded
+    return {}
+
+
+def _serialize_claim_row(row: dict) -> dict:
+    requested_updates = _claim_requested_updates(row)
+    payload = {
+        "id": row.get("id"),
+        "company_id": row.get("company_id"),
+        "user_id": row.get("user_id"),
+        "status": _claim_status_from_row(row),
+        "role_at_company": requested_updates.get("role_at_company"),
+        "claimant_note": row.get("message"),
+    }
+
+    if row.get("submitter_email"):
+        payload["submitter_email"] = row.get("submitter_email")
+
+    return payload
+
+
+def _claim_verification_history(claim_id: int) -> list[dict]:
+    if not _table_exists("verification_events"):
+        return []
+
+    verification_columns = _table_columns("verification_events")
+    if "claim_request_id" not in verification_columns:
+        return []
+
+    select_parts = ["id", "event_type", "actor_email", "notes"]
+    if "created_at" in verification_columns:
+        select_parts.append("created_at")
+    else:
+        select_parts.append("NULL AS created_at")
+
+    rows = db.session.execute(
+        text(f"""
+            SELECT {', '.join(select_parts)}
+            FROM verification_events
+            WHERE claim_request_id = :claim_id
+            ORDER BY id ASC
+            """),
+        {"claim_id": claim_id},
+    ).mappings()
+
+    events: list[dict] = []
+    for row in rows:
+        event_payload = {
+            "id": row.get("id"),
+            "event_type": row.get("event_type"),
+            "actor_email": row.get("actor_email"),
+            "notes": row.get("notes"),
+        }
+        if row.get("created_at") is not None:
+            event_payload["created_at"] = str(row.get("created_at"))
+        events.append(event_payload)
+
+    return events
+
+
+def _append_verification_event(
+    *,
+    claim_id: int,
+    event_type: str,
+    actor_email: str | None,
+    notes: str | None,
+) -> None:
+    if not _table_exists("verification_events"):
+        return
+
+    verification_columns = _table_columns("verification_events")
+    event_values: dict[str, object] = {}
+    if "claim_request_id" in verification_columns:
+        event_values["claim_request_id"] = claim_id
+    if "event_type" in verification_columns:
+        event_values["event_type"] = event_type
+    if "actor_email" in verification_columns and actor_email:
+        event_values["actor_email"] = actor_email
+    if "notes" in verification_columns and notes:
+        event_values["notes"] = notes
+
+    if not event_values:
+        return
+
+    event_columns = sorted(event_values.keys())
+    event_params = {f"v_{column}": event_values[column] for column in event_columns}
+    event_column_csv = ", ".join(event_columns)
+    event_values_csv = ", ".join(f":v_{column}" for column in event_columns)
+
+    db.session.execute(
+        text(f"""
+            INSERT INTO verification_events ({event_column_csv})
+            VALUES ({event_values_csv})
+            """),
+        event_params,
+    )
 
 
 def _serialize_company_for_response(row: dict) -> dict:
@@ -531,32 +720,12 @@ def _create_claim_request(*, company_id: int, payload: dict, user: dict):
         params,
     ).scalar_one()
 
-    if _table_exists("verification_events"):
-        verification_columns = _table_columns("verification_events")
-        event_values: dict[str, object] = {}
-        if "claim_request_id" in verification_columns:
-            event_values["claim_request_id"] = claim_id
-        if "event_type" in verification_columns:
-            event_values["event_type"] = "claim_submitted"
-        if "actor_email" in verification_columns and user.get("email"):
-            event_values["actor_email"] = user["email"]
-        if "notes" in verification_columns:
-            event_values["notes"] = f"role_at_company={role_at_company}"
-
-        if event_values:
-            event_columns = sorted(event_values.keys())
-            event_params = {
-                f"v_{column}": event_values[column] for column in event_columns
-            }
-            event_column_csv = ", ".join(event_columns)
-            event_values_csv = ", ".join(f":v_{column}" for column in event_columns)
-            db.session.execute(
-                text(f"""
-                    INSERT INTO verification_events ({event_column_csv})
-                    VALUES ({event_values_csv})
-                    """),
-                event_params,
-            )
+    _append_verification_event(
+        claim_id=claim_id,
+        event_type="claim_submitted",
+        actor_email=user.get("email"),
+        notes=f"role_at_company={role_at_company}",
+    )
 
     db.session.commit()
     return (
@@ -598,6 +767,230 @@ def _is_verified_company_owner(*, company_id: int, user_id: str) -> bool:
         {"company_id": company_id, "user_id": user_id},
     ).first()
     return row is not None
+
+
+def _user_claim_for_company(*, company_id: int, user: dict):
+    if not _company_exists(company_id):
+        return _error_response(
+            404,
+            "company_not_found",
+            "Company not found.",
+            {"company_id": company_id},
+        )
+
+    columns = _table_columns("claim_requests")
+    status_column = _claim_status_column(columns)
+    if not status_column or "user_id" not in columns:
+        return _error_response(
+            500,
+            "schema_mismatch",
+            "Claim requests schema is missing required columns.",
+        )
+
+    row = (
+        db.session.execute(
+            text("""
+                SELECT *
+                FROM claim_requests
+                WHERE company_id = :company_id
+                  AND user_id = :user_id
+                ORDER BY id DESC
+                LIMIT 1
+                                """),
+            {
+                "company_id": company_id,
+                "user_id": user["id"],
+            },
+        )
+        .mappings()
+        .first()
+    )
+
+    if row is None:
+        return _error_response(
+            404,
+            "claim_not_found",
+            "Claim not found for this user and company.",
+            {
+                "company_id": company_id,
+                "user_id": user["id"],
+            },
+        )
+
+    item = _serialize_claim_row(dict(row))
+    item["verification_events"] = _claim_verification_history(int(item["id"]))
+    return jsonify({"item": item}), 200
+
+
+def _list_claim_requests(*, status: str | None):
+    columns = _table_columns("claim_requests")
+    status_column = _claim_status_column(columns)
+    if not status_column:
+        return _error_response(
+            500,
+            "schema_mismatch",
+            "Claim requests schema is missing status column.",
+        )
+
+    where_clauses: list[str] = []
+    params: dict[str, object] = {}
+    if status:
+        where_clauses.append(f"LOWER({status_column}) = :status")
+        params["status"] = status
+
+    where_sql = ""
+    if where_clauses:
+        where_sql = "WHERE " + " AND ".join(where_clauses)
+
+    rows = db.session.execute(
+        text(f"""
+            SELECT *
+            FROM claim_requests
+            {where_sql}
+            ORDER BY id DESC
+            LIMIT 200
+            """),
+        params,
+    ).mappings()
+
+    items: list[dict] = []
+    for row in rows:
+        item = _serialize_claim_row(dict(row))
+        item["verification_events"] = _claim_verification_history(int(item["id"]))
+        items.append(item)
+
+    return jsonify({"items": items, "filters": {"status": status}}), 200
+
+
+def _admin_decide_claim(*, claim_id: int, payload: dict, admin_user: dict):
+    decision, error = _non_empty_string_field(payload, "decision")
+    if error:
+        return error
+    decision = decision.lower()
+    if decision not in CLAIM_DECISION_TO_STATUS:
+        return _error_response(
+            400,
+            "invalid_request_body",
+            "'decision' has an invalid value.",
+            {
+                "field": "decision",
+                "value": decision,
+                "allowed_values": sorted(CLAIM_DECISION_TO_STATUS.keys()),
+            },
+        )
+
+    raw_notes = payload.get("notes")
+    if raw_notes is not None and not isinstance(raw_notes, str):
+        return _error_response(
+            400,
+            "invalid_request_body",
+            "'notes' must be a string when provided.",
+            {"field": "notes"},
+        )
+    notes = raw_notes.strip() if isinstance(raw_notes, str) else None
+
+    columns = _table_columns("claim_requests")
+    status_column = _claim_status_column(columns)
+    if not status_column:
+        return _error_response(
+            500,
+            "schema_mismatch",
+            "Claim requests schema is missing status column.",
+        )
+
+    row = (
+        db.session.execute(
+            text("""
+                SELECT *
+                FROM claim_requests
+                WHERE id = :claim_id
+                LIMIT 1
+                """),
+            {"claim_id": claim_id},
+        )
+        .mappings()
+        .first()
+    )
+
+    if row is None:
+        return _error_response(
+            404,
+            "claim_not_found",
+            "Claim request not found.",
+            {"claim_id": claim_id},
+        )
+
+    current_status = _claim_status_from_row(dict(row))
+    if current_status != CLAIM_STATUS_PENDING:
+        return _error_response(
+            409,
+            "verification_conflict",
+            "Only pending claims can be approved or rejected.",
+            {
+                "claim_id": claim_id,
+                "status": current_status,
+            },
+        )
+
+    new_status = CLAIM_DECISION_TO_STATUS[decision]
+    assignments = [f"{status_column} = :new_status"]
+    if "updated_at" in columns:
+        assignments.append("updated_at = CURRENT_TIMESTAMP")
+
+    try:
+        db.session.execute(
+            text(f"""
+                UPDATE claim_requests
+                SET {', '.join(assignments)}
+                WHERE id = :claim_id
+                """),
+            {
+                "claim_id": claim_id,
+                "new_status": new_status,
+            },
+        )
+
+        event_type = "claim_approved" if decision == "approve" else "claim_rejected"
+        _append_verification_event(
+            claim_id=claim_id,
+            event_type=event_type,
+            actor_email=admin_user.get("email"),
+            notes=notes,
+        )
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return _error_response(
+            409,
+            "claim_conflict",
+            "Claim decision conflicts with an existing active ownership claim.",
+            {"claim_id": claim_id, "decision": decision},
+        )
+
+    updated_row = (
+        db.session.execute(
+            text("""
+                SELECT *
+                FROM claim_requests
+                WHERE id = :claim_id
+                LIMIT 1
+                """),
+            {"claim_id": claim_id},
+        )
+        .mappings()
+        .first()
+    )
+    if updated_row is None:
+        return _error_response(
+            500,
+            "verification_update_failed",
+            "Claim decision was saved but the updated claim could not be loaded.",
+            {"claim_id": claim_id},
+        )
+
+    item = _serialize_claim_row(dict(updated_row))
+    item["verification_events"] = _claim_verification_history(int(item["id"]))
+    return jsonify({"item": item}), 200
 
 
 def _update_company_protected_fields(*, company_id: int, payload: dict, user: dict):
@@ -1454,6 +1847,70 @@ def register_company_routes(app: Flask) -> None:
                 503,
                 "data_source_unavailable",
                 "Could not create claim due to database connectivity.",
+            )
+
+    @app.get("/companies/<int:company_id>/claims/me")
+    def get_my_company_claim(company_id: int):
+        user, error = _require_authenticated_user()
+        if error:
+            return error
+
+        try:
+            return _user_claim_for_company(company_id=company_id, user=user)
+        except OperationalError:
+            db.session.rollback()
+            return _error_response(
+                503,
+                "data_source_unavailable",
+                "Could not load claim due to database connectivity.",
+            )
+
+    @app.get("/admin/claims")
+    def list_admin_claims():
+        _, error = _require_admin_user()
+        if error:
+            return error
+
+        status, error = _parse_enum_filter(
+            request.args.get("status"),
+            field_name="status",
+            allowed_values=CLAIM_STATUS_VALUES,
+        )
+        if error:
+            return error
+
+        try:
+            return _list_claim_requests(status=status)
+        except OperationalError:
+            db.session.rollback()
+            return _error_response(
+                503,
+                "data_source_unavailable",
+                "Could not list claims due to database connectivity.",
+            )
+
+    @app.patch("/admin/claims/<int:claim_id>/verification")
+    def decide_admin_claim(claim_id: int):
+        admin_user, error = _require_admin_user()
+        if error:
+            return error
+
+        payload, error = _request_json_object()
+        if error:
+            return error
+
+        try:
+            return _admin_decide_claim(
+                claim_id=claim_id,
+                payload=payload,
+                admin_user=admin_user,
+            )
+        except OperationalError:
+            db.session.rollback()
+            return _error_response(
+                503,
+                "data_source_unavailable",
+                "Could not update claim verification due to database connectivity.",
             )
 
     @app.patch("/companies/<int:company_id>")

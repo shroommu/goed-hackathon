@@ -123,6 +123,7 @@ gunicorn --bind 0.0.0.0:${PORT} wsgi:app
 - `SUPABASE_SECRET_KEY`: server-side key used by REST fallback
 - `SUPABASE_REST_TIMEOUT_SECONDS`: timeout for REST fallback requests (default: `10`)
 - `SUPABASE_AUTH_TIMEOUT_SECONDS`: timeout for auth verification requests (default: `10`)
+- `ADMIN_EMAILS`: optional comma-separated admin emails allowed to manage claim verification decisions
 
 ## Endpoints
 
@@ -382,6 +383,49 @@ Additional codes used by company endpoints:
   - Permission rule:
     - caller must have a `verified` claim for this company.
 
+- `GET /companies/<company_id>/claims/me`
+  - Purpose: view the caller's most recent claim status for the company, including verification audit events.
+  - Auth: `Authorization: Bearer <supabase-access-token>`.
+  - Returns `200` JSON:
+
+```json
+{
+  "item": {
+    "id": 7,
+    "company_id": 42,
+    "user_id": "00000000-0000-0000-0000-000000000000",
+    "status": "pending",
+    "role_at_company": "Founder",
+    "claimant_note": "I am the founder.",
+    "submitter_email": "owner@example.com",
+    "verification_events": [
+      {
+        "id": 11,
+        "event_type": "claim_submitted",
+        "actor_email": "owner@example.com",
+        "notes": "role_at_company=Founder",
+        "created_at": "2026-05-08T10:00:00+00:00"
+      }
+    ]
+  }
+}
+```
+
+- `GET /admin/claims`
+  - Purpose: admin queue endpoint for claim verification review.
+  - Auth: `Authorization: Bearer <supabase-access-token>` (admin required).
+  - Optional query params:
+    - `status` (`pending`, `verified`, `rejected`)
+
+- `PATCH /admin/claims/<claim_id>/verification`
+  - Purpose: admin approval/rejection workflow for ownership claims.
+  - Auth: `Authorization: Bearer <supabase-access-token>` (admin required).
+  - Required JSON body fields:
+    - `decision` (`approve` or `reject`)
+  - Optional JSON fields:
+    - `notes` (string)
+  - Returns `200` JSON with updated claim state and verification audit events.
+
 Additional BE-008 related error codes:
 - `missing_auth_token`
 - `invalid_auth_token`
@@ -390,6 +434,9 @@ Additional BE-008 related error codes:
 - `invalid_request_body`
 - `claim_conflict`
 - `ownership_required`
+- `claim_not_found`
+- `verification_conflict`
+- `admin_required`
 
 ## Apply BE-008 Migration
 

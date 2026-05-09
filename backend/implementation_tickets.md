@@ -67,7 +67,7 @@ Acceptance Criteria:
 2. User can claim an existing company.
 3. Ownership status gates edit permissions.
 
-### BE-009 Lightweight verification flow
+### BE-009 Lightweight verification flow [COMPLETED]
 Estimate: 1.5 days
 Dependencies: BE-008
 Acceptance Criteria:
