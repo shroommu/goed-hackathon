@@ -124,38 +124,6 @@ def _collect_search_terms(context: dict[str, Any], message: str) -> list[str]:
     return sorted(expanded_terms)[:12]
 
 
-def _is_context_sufficient(context: dict[str, Any]) -> bool:
-    """Require at least 2 high-value fields before recommendation generation."""
-    filled = 0
-    if context.get("stage"):
-        filled += 1
-    if context.get("industry"):
-        filled += 1
-    if context.get("location"):
-        filled += 1
-    if _normalize_text_list(context.get("objectives")):
-        filled += 1
-    return filled >= 2
-
-
-def _follow_up_question(context: dict[str, Any]) -> str:
-    missing = []
-    if not context.get("stage"):
-        missing.append("stage")
-    if not context.get("industry"):
-        missing.append("industry")
-    if not context.get("location"):
-        missing.append("location")
-    if not _normalize_text_list(context.get("objectives")):
-        missing.append("objective")
-
-    if not missing:
-        return "Could you share one more goal so I can narrow recommendations?"
-
-    target = ", ".join(missing[:2])
-    return f"Before I recommend programs, could you share your {target}?"
-
-
 def _is_validation_debug_enabled() -> bool:
     header_enabled = request.headers.get("X-Admin-Debug", "").lower() in {
         "1",
@@ -586,18 +554,9 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                 if field in context and not isinstance(context[field], list):
                     context[field] = [context[field]]
 
-            if not _is_context_sufficient(context):
-                return (
-                    jsonify(
-                        {
-                            "assistant_message": "I can give better recommendations with a bit more context first.",
-                            "derived_context": context,
-                            "recommendations": [],
-                            "follow_up_question": _follow_up_question(context),
-                        }
-                    ),
-                    200,
-                )
+            # Do not block here: structured context may be empty on early turns while the user's
+            # message still contains stage/industry/etc. The LLM extracts derived_context; skipping
+            # this step prevented any extraction and forced the canned "more context" reply forever.
 
             # Search for candidate resources
             try:

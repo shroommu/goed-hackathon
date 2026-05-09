@@ -16,8 +16,31 @@ class Be016SafetyTests(unittest.TestCase):
         cls.app = app_module.create_app()
         cls.client = cls.app.test_client()
 
-    def test_sparse_context_returns_follow_up_before_recommendations(self):
-        with patch("app.routes_navigator.search_resources") as mock_search:
+    def test_sparse_context_still_invokes_search_and_llm(self):
+        """Empty structured context must not short-circuit; the LLM extracts from the message."""
+        candidates = [
+            SimpleNamespace(
+                id=1,
+                title="Resource",
+                description="Desc",
+                topics="",
+                industries="",
+                communities="",
+                locations="",
+                link="https://example.com",
+            )
+        ]
+        llm_payload = {
+            "assistant_message": "Tell me more about your goals.",
+            "derived_context": {},
+            "recommendations": [],
+            "follow_up_question": "What stage is your business at?",
+        }
+        with patch("app.routes_navigator.search_resources", return_value=candidates) as mock_search, patch(
+            "app.routes_navigator.get_llm_client", return_value=object()
+        ), patch(
+            "app.routes_navigator.generate_llm_response", return_value=llm_payload
+        ):
             response = self.client.post(
                 "/api/navigator/chat/message",
                 json={"message": "I need help", "context": {}},
@@ -25,9 +48,10 @@ class Be016SafetyTests(unittest.TestCase):
 
         body = response.get_json()
         self.assertEqual(response.status_code, 200)
+        mock_search.assert_called_once()
         self.assertEqual(body["recommendations"], [])
         self.assertIn("follow_up_question", body)
-        mock_search.assert_not_called()
+        self.assertEqual(body["follow_up_question"], "What stage is your business at?")
 
     def test_unknown_resource_id_is_filtered_out(self):
         candidates = [
