@@ -176,7 +176,7 @@ function MapPageContent() {
     if (hasActiveFilters(draftFilters)) {
       setActiveView("mindmap");
     } else {
-      setActiveView("bubble
+      setActiveView("bubble");
     }
   }, [draftFilters]);
 
