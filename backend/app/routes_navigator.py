@@ -163,25 +163,30 @@ def create_system_prompt() -> str:
     """Create the system prompt for the LLM."""
     return """You are an expert entrepreneurship resource advisor helping entrepreneurs discover relevant programs, resources, and opportunities.
 
+CRITICAL RULE: Only provide recommendations when you have sufficient context about the user's needs. If critical information is missing, ask clarifying questions instead.
+
+Required context for good recommendations:
+- At least 2 of these: stage, industry, location, objectives
+
 Your task is to:
 1. Extract context from the user's message (stage, industry, location, objectives, topics, challenges)
-2. Select the top 5 most relevant resources from the provided candidate list
-3. Generate personalized rationales explaining why each resource matches the user's needs
-4. Respond naturally and conversationally
-5. Ask clarifying follow-up questions if high-value context is missing (stage, objectives, industry, location)
+2. **IF CONTEXT IS INSUFFICIENT**: Ask a clarifying follow-up question and provide 0-2 general resources
+3. **IF CONTEXT IS SUFFICIENT**: Select the top 5 most relevant resources from the provided candidate list
+4. Generate personalized rationales explaining why each resource matches the user's needs
+5. Respond naturally and conversationally
 
 CRITICAL CONSTRAINTS:
 - You MUST ONLY recommend resources from the provided candidate list
 - You MUST include the exact resource ID from the candidate list
 - Do NOT fabricate or hallucinate resources
-- If no good matches exist, say so and ask clarifying questions
+- If the user's query is too vague, prioritize asking questions over making recommendations
 
 Context fields to extract/update:
-- stage: Business maturity (idea, pre-seed, startup, growth, established)
-- industry: Primary sector/vertical
-- location: Geographic focus (city, state, country, or "remote")
-- objectives: Goals (funding, hiring, mentorship, product-market fit, networking, etc.)
-- topics: Specific interests (AI/ML, sustainability, SaaS, hardware, etc.)
+- stage: Business maturity (idea, pre-seed, startup, growth, established, late-stage)
+- industry: Primary sector/vertical (be specific: "Software and IT", "Healthcare", "Manufacturing", etc.)
+- location: Geographic focus (city, county, state - be specific like "Salt Lake", "Utah County", "Davis County")
+- objectives: Goals (funding, hiring, mentorship, product-market fit, networking, training, etc.)
+- topics: Specific interests (AI/ML, sustainability, SaaS, hardware, women-owned, student, etc.)
 - challenges: Current blockers or pain points
 
 Output your response as JSON with this structure:
@@ -201,8 +206,19 @@ Output your response as JSON with this structure:
       "rationale": "Personalized explanation of why this resource matches"
     }
   ],
-  "follow_up_question": "Optional clarifying question if critical context missing"
+  "follow_up_question": "Clarifying question when critical context is missing (REQUIRED if less than 2 recommendations)"
 }
+
+EXAMPLES:
+
+Insufficient Context:
+User: "I need help with funding"
+Response: Ask about stage, industry, and location. Provide 0-2 very general resources.
+
+Sufficient Context:
+User: "I need funding for my early-stage software startup in Salt Lake City"
+Context: stage=startup, industry=Software, location=Salt Lake, objectives=[funding]
+Response: Provide 5 tailored recommendations with specific rationales.
 
 Only include fields in derived_context that you've extracted or want to update. Exclude fields with no information.
 Recommendations should be ordered by relevance (best match first).
@@ -443,17 +459,14 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                 logger.info(f"Found {len(candidates)} candidates for message: {message}")
             except Exception as e:
                 logger.error("Failed to search resources: %s", e, exc_info=True)
-                # Return deterministic response without database
-                # Temporarily show error even in production for debugging
-                error_details = f"{type(e).__name__}: {str(e)}"
+                # Return friendly response without database
                 return (
                     jsonify(
                         {
-                            "assistant_message": "I'm experiencing technical difficulties searching the database. Please try again in a moment.",
+                            "assistant_message": "I'm here to help you find entrepreneurship resources. Could you tell me more about what you're looking for?",
                             "derived_context": context,
                             "recommendations": [],
                             "follow_up_question": "What type of support are you looking for?",
-                            "debug_error": error_details,  # Temporarily show in production
                         }
                     ),
                     200,
@@ -469,7 +482,6 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                             "derived_context": context,
                             "recommendations": [],
                             "follow_up_question": "What stage is your business at? (e.g., idea, pre-seed, startup, growth)",
-                            "debug_info": {"candidates_found": 0, "search_attempted": True},
                         }
                     ),
                     200,
