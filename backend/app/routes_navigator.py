@@ -492,12 +492,17 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
             # Try to use LLM
             llm_client = get_llm_client()
             use_llm = llm_client is not None
+            
+            if not use_llm:
+                logger.warning("LLM client not configured, using deterministic fallback")
 
             if use_llm:
                 try:
+                    logger.info("Invoking LLM for response generation")
                     llm_response = generate_llm_response(
                         message, context, candidates, llm_client
                     )
+                    logger.info("LLM response generated successfully")
 
                     # Enrich recommendations with full resource data
                     resource_map = {r.id: r for r in candidates}
@@ -534,8 +539,8 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                     return jsonify(response_data), 200
 
                 except Exception as e:
-                    logger.warning(
-                        "LLM generation failed, falling back to deterministic: %s", e
+                    logger.error(
+                        "LLM generation failed, falling back to deterministic: %s", e, exc_info=True
                     )
                     use_llm = False
 
