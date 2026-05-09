@@ -103,8 +103,14 @@ function MapPageContent() {
   const [companyError, setCompanyError] = useState("");
 
   const filtersAreActive = hasActiveFilters(appliedFilters);
-  const mappedCompanies = companiesPayload.items.filter(hasCoordinates);
-  const unmappedCompanies = companiesPayload.items.filter((item) => !hasCoordinates(item));
+  const mappedCompanies = useMemo(
+    () => companiesPayload.items.filter(hasCoordinates),
+    [companiesPayload.items]
+  );
+  const unmappedCompanies = useMemo(
+    () => companiesPayload.items.filter((item) => !hasCoordinates(item)),
+    [companiesPayload.items]
+  );
 
   const utahLeafletBounds = useMemo(
     () => [

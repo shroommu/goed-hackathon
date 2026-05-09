@@ -3,7 +3,7 @@
 import { Box, Button, Chip, Stack } from "@mui/material";
 import "leaflet/dist/leaflet.css";
 import "@changey/react-leaflet-markercluster/dist/styles.min.css";
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import MarkerClusterGroup from "@changey/react-leaflet-markercluster";
 import L from "leaflet";
@@ -39,6 +39,8 @@ export default function LeafletClusterMap({
   utahLeafletBounds
 }) {
   const mapRef = useRef(null);
+  const [hasInitialFit, setHasInitialFit] = useState(false);
+  const prevCompanyCountRef = useRef(0);
 
   // Memoize company icons to avoid recreating them on every render
   const companyIcons = useMemo(() => {
@@ -48,9 +50,18 @@ export default function LeafletClusterMap({
     }, {});
   }, [mappedCompanies]);
 
+  // Reset initial fit flag when company list changes (filters applied)
+  useEffect(() => {
+    if (prevCompanyCountRef.current !== mappedCompanies.length) {
+      setHasInitialFit(false);
+      prevCompanyCountRef.current = mappedCompanies.length;
+    }
+  }, [mappedCompanies.length]);
+
+  // Only fit bounds on initial load or when company list changes, not on every render
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) {
+    if (!map || hasInitialFit) {
       return;
     }
 
@@ -59,11 +70,13 @@ export default function LeafletClusterMap({
         mappedCompanies.map((company) => [company.latitude, company.longitude]),
         { padding: [24, 24], maxZoom: 10 }
       );
+      setHasInitialFit(true);
       return;
     }
 
     map.fitBounds(utahLeafletBounds, { padding: [24, 24] });
-  }, [mappedCompanies, utahLeafletBounds]);
+    setHasInitialFit(true);
+  }, [mappedCompanies, utahLeafletBounds, hasInitialFit]);
 
   return (
     <>
@@ -117,7 +130,7 @@ export default function LeafletClusterMap({
           <MarkerClusterGroup
             chunkedLoading
             showCoverageOnHover={false}
-            spiderfyOnMaxZoom
+            spiderfyOnMaxZoom={true}
             maxClusterRadius={44}
           >
             {mappedCompanies.map((company) => (
@@ -127,19 +140,12 @@ export default function LeafletClusterMap({
                 icon={companyIcons[company.id]}
                 eventHandlers={{
                   click: (e) => {
+                    // Prevent default behavior that might cause zoom/pan
+                    L.DomEvent.stopPropagation(e);
                     onSelectCompany(company.id);
-                    // Prevent map from zooming or panning when marker is clicked
-                    e.target._map.closePopup();
                   }
                 }}
-              >
-                <Popup autoPan={false}>
-                  <strong>{company.startup_name || "Unnamed company"}</strong>
-                  <br />
-                  {company.sector || "Unknown sector"}
-                  {company.stage ? ` - ${company.stage}` : ""}
-                </Popup>
-              </Marker>
+              />
             ))}
           </MarkerClusterGroup>
         </MapContainer>
