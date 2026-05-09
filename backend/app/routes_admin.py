@@ -106,7 +106,7 @@ def _company_to_dict(company: Company) -> dict:
     }
 
 
-def register_admin_routes(app: Flask) -> None:
+def register_admin_routes(app) -> None:
     """Register admin-only endpoints for content management."""
     
     @app.post("/admin/resources")

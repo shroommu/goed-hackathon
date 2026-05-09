@@ -271,7 +271,7 @@ def _supabase_get_resource(resource_id: int):
     return jsonify({"item": _resource_from_supabase_row(rows[0])}), 200
 
 
-def register_resource_routes(app: Flask) -> None:
+def register_resource_routes(app) -> None:
     @app.get("/resources")
     def list_resources():
         page, error = _parse_positive_int(

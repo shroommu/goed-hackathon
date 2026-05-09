@@ -1744,7 +1744,7 @@ def _get_company(company_id: int):
     return jsonify({"item": payload}), 200
 
 
-def register_company_routes(app: Flask) -> None:
+def register_company_routes(app) -> None:
     @app.get("/companies")
     def list_companies():
         page, error = _parse_positive_int(

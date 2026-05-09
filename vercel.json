@@ -5,7 +5,7 @@
     "rewrites": [
         {
             "source": "/api/:path*",
-            "destination": "https://goed-hackathon-backend.vercel.app/:path*"
+            "destination": "https://goed-hackathon-backend.vercel.app/api/:path*"
         }
     ]
 }

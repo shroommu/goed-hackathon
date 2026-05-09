@@ -5,8 +5,14 @@ This project uses separate Vercel projects for frontend and backend, unified und
 ## Architecture
 
 - **Frontend**: Next.js app (main domain)
-- **Backend**: Flask API (proxied through frontend)
-- **Routing**: `/api/*` and `/_/backend/*` routes proxy to backend
+- **Backend**: Flask API with `/api` prefix (proxied through frontend)
+- **Routing**: `/api/*` routes proxy to backend's `/api/*` endpoints
+
+All backend routes are prefixed with `/api`:
+- `/api/health`
+- `/api/companies`
+- `/api/resources`
+- `/api/admin/*`
 
 ## Setup Steps
 
@@ -19,7 +25,7 @@ This project uses separate Vercel projects for frontend and backend, unified und
    - **Framework Preset**: Other
    - **Build Command**: (leave empty)
    - **Output Directory**: (leave empty)
-4. Add environment variables (if any)
+4. Add environment variables (SUPABASE_URL, SUPABASE_ANON_KEY, etc.)
 5. Deploy and note the project URL (e.g., `your-backend-project.vercel.app`)
 
 ### 2. Deploy Frontend Project
@@ -40,17 +46,13 @@ Edit `/vercel.json` in the root and replace `"your-backend-project.vercel.app"` 
 
 ```json
 {
-    "buildCommand": "cd frontend && npm run build",
-    "outputDirectory": "frontend/.next",
+    "buildCommand": "npm run build",
+    "outputDirectory": "./.next",
     "framework": "nextjs",
     "rewrites": [
         {
             "source": "/api/:path*",
             "destination": "https://YOUR-ACTUAL-BACKEND-URL.vercel.app/api/:path*"
-        },
-        {
-            "source": "/_/backend/:path*",
-            "destination": "https://YOUR-ACTUAL-BACKEND-URL.vercel.app/:path*"
         }
     ]
 }
@@ -68,25 +70,34 @@ Ensure your Flask backend allows requests from your frontend domain. Check `app/
 
 ## Local Development
 
-Both services can run independently:
+Both services run independently with the `/api` prefix:
 
 ```bash
-# Backend
+# Backend (serves at http://localhost:5000/api/*)
 cd backend
 source .venv/bin/activate
 flask run
 
-# Frontend
+# Frontend (configured to call http://127.0.0.1:5000/api/*)
 cd frontend
 npm run dev
 ```
 
+The frontend's `.env.local` file should have:
+```
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:5000/api
+```
+
 ## Troubleshooting
 
-- **404 on API routes**: Verify the backend URL in vercel.json is correct
+- **404 on API routes**: 
+  - Verify the backend URL in vercel.json is correct
+  - Ensure backend routes all have `/api` prefix
+  - Check that rewrite destination includes `/api/:path*`
 - **CORS errors**: Update CORS settings in backend to allow your frontend domain
 - **Build failures**: Check build logs in Vercel dashboard
 - **Environment variables**: Ensure they're set in both projects on Vercel
+- **Local dev 404s**: Make sure `NEXT_PUBLIC_API_BASE_URL` includes `/api` suffix
 
 ## Git Workflow
 
