@@ -24,6 +24,37 @@ def register_routes(app: Flask) -> None:
             ),
             200,
         )
+    
+    @api.get("/navigator/debug")
+    def navigator_debug():
+        """Debug endpoint to check navigator configuration"""
+        from .models import Resource
+        from .routes_navigator import get_llm_client
+        
+        debug_info = {
+            "openrouter_api_key_configured": bool(current_app.config.get("OPENROUTER_API_KEY")),
+            "openrouter_model": current_app.config.get("OPENROUTER_MODEL", "not set"),
+            "database_url_configured": bool(current_app.config.get("SQLALCHEMY_DATABASE_URI")),
+        }
+        
+        # Test database connection
+        try:
+            resource_count = Resource.query.filter_by(archived=False).count()
+            debug_info["database_connection"] = "ok"
+            debug_info["resource_count"] = resource_count
+        except Exception as e:
+            debug_info["database_connection"] = "failed"
+            debug_info["database_error"] = str(e)
+        
+        # Test LLM client
+        try:
+            llm_client = get_llm_client()
+            debug_info["llm_client"] = "configured" if llm_client else "not configured"
+        except Exception as e:
+            debug_info["llm_client"] = "error"
+            debug_info["llm_error"] = str(e)
+        
+        return jsonify(debug_info), 200
 
     register_resource_routes(api)
     register_company_routes(api)
