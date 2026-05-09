@@ -7,13 +7,13 @@ export default function NavigatorPage() {
     <SiteShell>
       <Box component="section" aria-labelledby="navigator-title" sx={{ maxWidth: "44rem" }}>
         <Typography variant="overline" sx={{ letterSpacing: "0.08em", fontWeight: 700, color: "text.secondary" }}>
-          Founder Navigator
+          Resource Navigator
         </Typography>
         <Typography id="navigator-title" variant="h1" sx={{ mt: 1, mb: 2, fontSize: { xs: "2rem", md: "3rem" } }}>
           Personalized startup support, tuned to your stage.
         </Typography>
         <Typography variant="body1" sx={{ color: "text.secondary" }}>
-          This route is ready for FE-003 intake. Start with your goals and we will match Utah programs, mentors, and funding resources.
+          Start with your goals and we will match Utah programs, mentors, and funding resources.
         </Typography>
       </Box>
 
@@ -24,7 +24,7 @@ export default function NavigatorPage() {
               Next up
             </Typography>
             <Typography color="text.secondary">
-              FE-003 adds guided intake questions, validations, and state persistence for a sub-2-minute completion path.
+              FE-013 adds a chat-first navigator with guided questions, loading and error states, and persistent session context.
             </Typography>
           </CardContent>
         </Card>

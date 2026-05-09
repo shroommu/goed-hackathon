@@ -26,14 +26,14 @@ Acceptance Criteria:
 2. Value proposition is clear in under one screen.
 3. CTA paths are measurable and trackable.
 
-### FE-003 Founder intake experience
+### FE-003 Guided onboarding flow [SKIPPED]
 Estimate: 1 day
 Dependencies: FE-001, BE-006
 Acceptance Criteria:
-1. Intake completes in under 2 minutes for typical users.
+1. Guided onboarding completes in under 2 minutes for typical users.
 2. Validation errors are clear and recoverable.
 3. Progress state is preserved during navigation.
-4. Intake submission and recommendation fetch use backend endpoints only.
+4. Onboarding submission and recommendation fetch use backend endpoints only.
 
 ### FE-004 Personalized recommendations UI
 Estimate: 1 day
@@ -123,7 +123,7 @@ Acceptance Criteria:
 Estimate: 1.5 days
 Dependencies: FE-003, BE-014
 Acceptance Criteria:
-1. Navigator route supports chat-first intake with message thread, composer, and loading/error states.
+1. Navigator route supports chat-first onboarding with message thread, composer, and loading/error states.
 2. Chat requests use backend conversational endpoint only.
 3. Session id is persisted client-side for refresh-safe resume.
 4. Derived context is visible to users as editable chips or summary labels.

@@ -20,7 +20,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 const navLinks = [
-  { href: "/navigator", label: "Founder Navigator" },
+  { href: "/navigator", label: "Resource Navigator" },
   { href: "/map", label: "Startup Map" },
   { href: "#how-it-works", label: "How it works" },
   { href: "#get-started", label: "Choose mode" }
@@ -77,7 +77,7 @@ export default function SiteShell({ children }) {
                 G
               </Box>
               <Typography fontWeight={700} letterSpacing="0.02em">
-                GOED Founders
+                GOED Navigator
               </Typography>
             </MuiLink>
 
@@ -130,7 +130,7 @@ export default function SiteShell({ children }) {
 
       <Box component="footer" sx={{ borderTop: "1px solid #d7d2c7" }}>
         <Container maxWidth="lg" sx={{ py: 3, color: "text.secondary", fontSize: "0.9rem" }}>
-          <Typography variant="body2">Built for Utah startup discovery and founder acceleration.</Typography>
+          <Typography variant="body2">Built for Utah startup discovery and resource navigation.</Typography>
         </Container>
       </Box>
     </>

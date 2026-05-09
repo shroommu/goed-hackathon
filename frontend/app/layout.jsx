@@ -15,7 +15,7 @@ const bodyFont = Public_Sans({
 });
 
 export const metadata = {
-  title: "GOED Founders",
+  title: "GOED Navigator",
   description: "Find the right startup support path in Utah, fast."
 };
 

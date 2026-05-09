@@ -20,15 +20,11 @@ export default function HomePage() {
           Utah startup launchpad
         </Typography>
         <Typography id="hero-title" variant="h1" sx={{ mt: 1, mb: 2, fontSize: { xs: "2rem", md: "3.4rem" }, textWrap: "balance" }}>
-          Choose your path in seconds: founder guidance or ecosystem map.
+          Choose your path in seconds: guided support or ecosystem map.
         </Typography>
-        <Typography variant="body1" sx={{ color: "text.secondary", fontSize: { xs: "1rem", md: "1.2rem" } }}>
-          GOED helps founders and investors quickly find the right next move with personalized resources and a live view of Utah startups.
+        <Typography variant="body1" sx={{ color: "text.secondary", fontSize: { xs: "1rem", md: "1.2rem" } }} gutterBottom>
+          GOED helps users and investors quickly find the right next move with personalized resources and a live view of Utah startups.
         </Typography>
-        <Stack direction="row" spacing={1} mt={2} sx={{ flexWrap: "wrap", gap: 1 }}>
-          <Chip label="< 2 min founder intake" color="secondary" sx={{ fontWeight: 700 }} />
-          <Chip label="Filterable startup map" variant="outlined" />
-        </Stack>
       </Box>
 
       <Box
@@ -45,21 +41,21 @@ export default function HomePage() {
         <Card>
           <CardContent sx={{ p: 3 }}>
             <Typography variant="h2" sx={{ mb: 1, fontSize: "1.5rem" }}>
-              Founder Navigator
+              Resource Navigator
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 2 }}>
-              Tell us your stage, goals, and focus. Get ranked resources with clear reasons and next steps.
+              Share your goals and focus. Get ranked resources with clear reasons and next steps.
             </Typography>
             <Button
               component={Link}
-              href="/navigator?entry=landing&mode=founder"
+              href="/navigator?entry=landing&mode=guided"
               variant="contained"
               color="primary"
               size="large"
               fullWidth
-              onClick={handleTrack("home_founder_primary", "founder", "/navigator")}
+              onClick={handleTrack("home_navigator_primary", "guided", "/navigator")}
             >
-              Start founder flow
+              Start navigator
             </Button>
           </CardContent>
         </Card>
