@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import json
 import os
 import re
+from urllib.parse import urlparse
 
 import requests
 from flask import Flask, current_app, jsonify, request
 from sqlalchemy import or_, text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import NoSuchTableError, OperationalError
 
 from .models import Resource
 from .extensions import db
@@ -16,6 +18,7 @@ DEFAULT_PER_PAGE = 20
 MAX_PER_PAGE = 100
 MAX_COMPANY_PER_PAGE = 100
 SUPABASE_REST_TIMEOUT_SECONDS = int(os.getenv("SUPABASE_REST_TIMEOUT_SECONDS", "10"))
+SUPABASE_AUTH_TIMEOUT_SECONDS = int(os.getenv("SUPABASE_AUTH_TIMEOUT_SECONDS", "10"))
 
 ALLOWED_STAGE_FILTERS = {
     "idea",
@@ -37,6 +40,621 @@ SIZE_BUCKETS = {
     "large": (201, 500),
     "enterprise": (501, None),
 }
+
+PROTECTED_COMPANY_FIELDS = {
+    "description",
+    "website",
+    "stage",
+    "employees",
+    "sector",
+    "full_address",
+    "linkedin",
+}
+
+
+def _request_json_object():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return None, _error_response(
+            400,
+            "invalid_request_body",
+            "Request body must be a JSON object.",
+        )
+    return payload, None
+
+
+def _non_empty_string_field(payload: dict, field_name: str):
+    value = payload.get(field_name)
+    if not isinstance(value, str) or not value.strip():
+        return None, _error_response(
+            400,
+            "invalid_request_body",
+            f"'{field_name}' is required and must be a non-empty string.",
+            {"field": field_name},
+        )
+    return value.strip(), None
+
+
+def _table_columns(table_name: str) -> set[str]:
+    inspector = db.inspect(db.engine)
+    try:
+        return {column["name"] for column in inspector.get_columns(table_name)}
+    except NoSuchTableError:
+        return set()
+
+
+def _table_exists(table_name: str) -> bool:
+    inspector = db.inspect(db.engine)
+    return table_name in inspector.get_table_names()
+
+
+def _first_present_column(columns: set[str], *candidates: str) -> str | None:
+    for candidate in candidates:
+        if candidate in columns:
+            return candidate
+    return None
+
+
+def _extract_domain(raw_website: str | None) -> str | None:
+    if not raw_website:
+        return None
+
+    candidate = raw_website.strip()
+    if not candidate:
+        return None
+
+    if "://" not in candidate:
+        candidate = f"https://{candidate}"
+
+    parsed = urlparse(candidate)
+    host = (parsed.hostname or "").strip().lower()
+    if host.startswith("www."):
+        host = host[4:]
+    return host or None
+
+
+def _supabase_auth_api_key() -> str | None:
+    return (
+        os.getenv("SUPABASE_PUBLISHABLE_KEY")
+        or os.getenv("SUPABASE_ANON_KEY")
+        or os.getenv("SUPABASE_SECRET_KEY")
+    )
+
+
+def _verify_supabase_token(token: str):
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = _supabase_auth_api_key()
+
+    if not supabase_url or not supabase_key:
+        return None, _error_response(
+            503,
+            "auth_unavailable",
+            "Supabase auth verification is not configured.",
+            {
+                "required": [
+                    "SUPABASE_URL",
+                    "SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY",
+                ]
+            },
+        )
+
+    endpoint = f"{supabase_url.rstrip('/')}/auth/v1/user"
+    try:
+        response = requests.get(
+            endpoint,
+            headers={
+                "apikey": supabase_key,
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json",
+            },
+            timeout=SUPABASE_AUTH_TIMEOUT_SECONDS,
+        )
+    except requests.RequestException as exc:
+        return None, _error_response(
+            503,
+            "auth_unavailable",
+            "Unable to reach Supabase auth verification endpoint.",
+            {"reason": str(exc)},
+        )
+
+    if response.status_code in {401, 403}:
+        return None, _error_response(
+            401, "invalid_auth_token", "Invalid or expired auth token."
+        )
+
+    if response.status_code >= 400:
+        return None, _error_response(
+            502,
+            "auth_provider_error",
+            "Supabase auth provider returned an error.",
+            {"status_code": response.status_code, "response": response.text},
+        )
+
+    user = response.json()
+    user_id = user.get("id")
+    if not user_id:
+        return None, _error_response(
+            401, "invalid_auth_token", "Auth token did not include user id."
+        )
+
+    return (
+        {
+            "id": user_id,
+            "email": user.get("email"),
+        },
+        None,
+    )
+
+
+def _require_authenticated_user():
+    auth_header = request.headers.get("Authorization", "").strip()
+    if not auth_header.lower().startswith("bearer "):
+        return None, _error_response(
+            401,
+            "missing_auth_token",
+            "Authorization header with Bearer token is required.",
+        )
+
+    token = auth_header[7:].strip()
+    if not token:
+        return None, _error_response(
+            401,
+            "missing_auth_token",
+            "Authorization header with Bearer token is required.",
+        )
+
+    return _verify_supabase_token(token)
+
+
+def _serialize_company_for_response(row: dict) -> dict:
+    return _normalize_company_row(dict(row), photo_gallery=[])
+
+
+def _find_domain_duplicates(*, company_id: int, website: str | None) -> list[int]:
+    website_domain = _extract_domain(website)
+    if not website_domain:
+        return []
+
+    columns = _table_columns("companies")
+    website_column = _first_present_column(columns, "website")
+    if not website_column:
+        return []
+
+    rows = db.session.execute(
+        text(f"""
+            SELECT id, {website_column} AS website
+            FROM companies
+            WHERE id <> :company_id AND {website_column} IS NOT NULL
+            """),
+        {"company_id": company_id},
+    ).mappings()
+
+    duplicates: list[int] = []
+    for row in rows:
+        row_domain = _extract_domain(row.get("website"))
+        if row_domain and row_domain == website_domain:
+            duplicates.append(int(row.get("id")))
+
+    return sorted(duplicates)
+
+
+def _create_company_listing(payload: dict):
+    startup_name, error = _non_empty_string_field(payload, "startup_name")
+    if error:
+        return error
+
+    website, error = _non_empty_string_field(payload, "website")
+    if error:
+        return error
+
+    columns = _table_columns("companies")
+    if not columns:
+        return _error_response(
+            503,
+            "data_source_unavailable",
+            "Companies table is unavailable.",
+        )
+
+    name_column = _first_present_column(columns, "startup_name", "name")
+    website_column = _first_present_column(columns, "website")
+
+    if not name_column or not website_column:
+        return _error_response(
+            500,
+            "schema_mismatch",
+            "Companies schema is missing required listing columns.",
+        )
+
+    values: dict[str, object] = {
+        name_column: startup_name,
+        website_column: website,
+    }
+
+    column_mapping = {
+        "description": ["description"],
+        "stage": ["stage"],
+        "sector": ["sector"],
+        "full_address": ["full_address", "address"],
+        "linkedin": ["linkedin", "linkedin_url"],
+        "display_type": ["display_type"],
+    }
+
+    for field_name, candidates in column_mapping.items():
+        if field_name not in payload:
+            continue
+        target_column = _first_present_column(columns, *candidates)
+        if not target_column:
+            continue
+        raw_value = payload.get(field_name)
+        if raw_value is None:
+            continue
+        text_value = str(raw_value).strip()
+        if text_value:
+            values[target_column] = text_value
+
+    employees_target = _first_present_column(columns, "employees", "employee_count")
+    if employees_target and payload.get("employees") is not None:
+        if employees_target == "employee_count":
+            coerced = _coerce_int(payload.get("employees"))
+            if coerced is not None:
+                values[employees_target] = coerced
+        else:
+            employees_text = str(payload.get("employees")).strip()
+            if employees_text:
+                values[employees_target] = employees_text
+
+    insert_columns = sorted(values.keys())
+    params = {f"v_{name}": values[name] for name in insert_columns}
+    column_csv = ", ".join(insert_columns)
+    values_csv = ", ".join(f":v_{name}" for name in insert_columns)
+
+    company_id = db.session.execute(
+        text(f"""
+            INSERT INTO companies ({column_csv})
+            VALUES ({values_csv})
+            RETURNING id
+            """),
+        params,
+    ).scalar_one()
+    db.session.commit()
+
+    row = (
+        db.session.execute(
+            text("SELECT * FROM companies WHERE id = :id"), {"id": company_id}
+        )
+        .mappings()
+        .first()
+    )
+    if row is None:
+        return _error_response(
+            500,
+            "listing_creation_failed",
+            "Listing was created but could not be loaded.",
+        )
+
+    return (
+        jsonify(
+            {
+                "item": _serialize_company_for_response(dict(row)),
+                "duplicate_domain_matches": _find_domain_duplicates(
+                    company_id=company_id,
+                    website=website,
+                ),
+            }
+        ),
+        201,
+    )
+
+
+def _claim_status_column(columns: set[str]) -> str | None:
+    if "status" in columns:
+        return "status"
+    if "STATUS" in columns:
+        return '"STATUS"'
+    return None
+
+
+def _claims_pending_or_verified_exists(company_id: int, status_column: str):
+    return (
+        db.session.execute(
+            text(f"""
+                SELECT id, LOWER({status_column}) AS status
+                FROM claim_requests
+                WHERE company_id = :company_id
+                  AND LOWER({status_column}) IN ('pending', 'verified')
+                LIMIT 1
+                """),
+            {"company_id": company_id},
+        )
+        .mappings()
+        .first()
+    )
+
+
+def _has_pending_claim_for_user(*, user_id: str, status_column: str):
+    columns = _table_columns("claim_requests")
+    if "user_id" not in columns:
+        return None
+
+    return (
+        db.session.execute(
+            text(f"""
+                SELECT id, company_id
+                FROM claim_requests
+                WHERE user_id = :user_id
+                  AND LOWER({status_column}) = 'pending'
+                LIMIT 1
+                """),
+            {"user_id": user_id},
+        )
+        .mappings()
+        .first()
+    )
+
+
+def _company_exists(company_id: int) -> bool:
+    row = db.session.execute(
+        text("SELECT 1 FROM companies WHERE id = :company_id LIMIT 1"),
+        {"company_id": company_id},
+    ).first()
+    return row is not None
+
+
+def _create_claim_request(*, company_id: int, payload: dict, user: dict):
+    role_at_company, error = _non_empty_string_field(payload, "role_at_company")
+    if error:
+        return error
+
+    claimant_note = payload.get("claimant_note")
+    if claimant_note is not None and not isinstance(claimant_note, str):
+        return _error_response(
+            400,
+            "invalid_request_body",
+            "'claimant_note' must be a string when provided.",
+            {"field": "claimant_note"},
+        )
+
+    if not _company_exists(company_id):
+        return _error_response(
+            404,
+            "company_not_found",
+            "Company not found.",
+            {"company_id": company_id},
+        )
+
+    columns = _table_columns("claim_requests")
+    status_column = _claim_status_column(columns)
+    if not status_column:
+        return _error_response(
+            500,
+            "schema_mismatch",
+            "Claim requests schema is missing status column.",
+        )
+
+    existing_active_claim = _claims_pending_or_verified_exists(
+        company_id, status_column
+    )
+    if existing_active_claim:
+        return _error_response(
+            409,
+            "claim_conflict",
+            "Company already has an active ownership claim.",
+            {
+                "company_id": company_id,
+                "existing_claim_id": existing_active_claim.get("id"),
+                "existing_status": existing_active_claim.get("status"),
+            },
+        )
+
+    existing_user_pending = _has_pending_claim_for_user(
+        user_id=user["id"],
+        status_column=status_column,
+    )
+    if existing_user_pending:
+        return _error_response(
+            409,
+            "claim_conflict",
+            "User already has an active pending claim.",
+            {
+                "user_id": user["id"],
+                "existing_claim_id": existing_user_pending.get("id"),
+                "existing_company_id": existing_user_pending.get("company_id"),
+            },
+        )
+
+    insert_values: dict[str, object] = {"company_id": company_id}
+
+    if "submitter_email" in columns and user.get("email"):
+        insert_values["submitter_email"] = user["email"]
+    if "submitter_name" in columns and user.get("email"):
+        insert_values["submitter_name"] = str(user["email"]).split("@", 1)[0]
+    if "status" in columns:
+        insert_values["status"] = "pending"
+    elif "STATUS" in columns:
+        insert_values["STATUS"] = "pending"
+    if "message" in columns and claimant_note:
+        insert_values["message"] = claimant_note.strip()
+    if "requested_updates" in columns:
+        insert_values["requested_updates"] = json.dumps(
+            {
+                "role_at_company": role_at_company,
+            }
+        )
+    if "user_id" in columns:
+        insert_values["user_id"] = user["id"]
+
+    insert_columns = sorted(insert_values.keys())
+    params = {f"v_{column}": insert_values[column] for column in insert_columns}
+    column_csv = ", ".join(insert_columns)
+    values_csv = ", ".join(f":v_{column}" for column in insert_columns)
+
+    claim_id = db.session.execute(
+        text(f"""
+            INSERT INTO claim_requests ({column_csv})
+            VALUES ({values_csv})
+            RETURNING id
+            """),
+        params,
+    ).scalar_one()
+
+    if _table_exists("verification_events"):
+        verification_columns = _table_columns("verification_events")
+        event_values: dict[str, object] = {}
+        if "claim_request_id" in verification_columns:
+            event_values["claim_request_id"] = claim_id
+        if "event_type" in verification_columns:
+            event_values["event_type"] = "claim_submitted"
+        if "actor_email" in verification_columns and user.get("email"):
+            event_values["actor_email"] = user["email"]
+        if "notes" in verification_columns:
+            event_values["notes"] = f"role_at_company={role_at_company}"
+
+        if event_values:
+            event_columns = sorted(event_values.keys())
+            event_params = {
+                f"v_{column}": event_values[column] for column in event_columns
+            }
+            event_column_csv = ", ".join(event_columns)
+            event_values_csv = ", ".join(f":v_{column}" for column in event_columns)
+            db.session.execute(
+                text(f"""
+                    INSERT INTO verification_events ({event_column_csv})
+                    VALUES ({event_values_csv})
+                    """),
+                event_params,
+            )
+
+    db.session.commit()
+    return (
+        jsonify(
+            {
+                "item": {
+                    "id": claim_id,
+                    "company_id": company_id,
+                    "user_id": user["id"],
+                    "status": "pending",
+                    "role_at_company": role_at_company,
+                    "claimant_note": (
+                        claimant_note.strip()
+                        if isinstance(claimant_note, str)
+                        else None
+                    ),
+                }
+            }
+        ),
+        201,
+    )
+
+
+def _is_verified_company_owner(*, company_id: int, user_id: str) -> bool:
+    columns = _table_columns("claim_requests")
+    status_column = _claim_status_column(columns)
+    if not status_column or "user_id" not in columns:
+        return False
+
+    row = db.session.execute(
+        text(f"""
+            SELECT 1
+            FROM claim_requests
+            WHERE company_id = :company_id
+              AND user_id = :user_id
+              AND LOWER({status_column}) = 'verified'
+            LIMIT 1
+            """),
+        {"company_id": company_id, "user_id": user_id},
+    ).first()
+    return row is not None
+
+
+def _update_company_protected_fields(*, company_id: int, payload: dict, user: dict):
+    if not payload:
+        return _error_response(
+            400,
+            "invalid_request_body",
+            "At least one protected field must be provided.",
+        )
+
+    unknown_fields = [
+        field for field in payload if field not in PROTECTED_COMPANY_FIELDS
+    ]
+    if unknown_fields:
+        return _error_response(
+            400,
+            "invalid_request_body",
+            "Request includes unsupported fields.",
+            {
+                "fields": sorted(unknown_fields),
+                "allowed_fields": sorted(PROTECTED_COMPANY_FIELDS),
+            },
+        )
+
+    if not _company_exists(company_id):
+        return _error_response(
+            404,
+            "company_not_found",
+            "Company not found.",
+            {"company_id": company_id},
+        )
+
+    if not _is_verified_company_owner(company_id=company_id, user_id=user["id"]):
+        return _error_response(
+            403,
+            "ownership_required",
+            "Only verified owners can edit protected fields.",
+            {"company_id": company_id, "user_id": user["id"]},
+        )
+
+    columns = _table_columns("companies")
+    field_to_column = {
+        "description": _first_present_column(columns, "description"),
+        "website": _first_present_column(columns, "website"),
+        "stage": _first_present_column(columns, "stage"),
+        "employees": _first_present_column(columns, "employees", "employee_count"),
+        "sector": _first_present_column(columns, "sector"),
+        "full_address": _first_present_column(columns, "full_address", "address"),
+        "linkedin": _first_present_column(columns, "linkedin", "linkedin_url"),
+    }
+
+    assignments: list[str] = []
+    params: dict[str, object] = {"company_id": company_id}
+    for field_name, raw_value in payload.items():
+        column_name = field_to_column.get(field_name)
+        if not column_name:
+            continue
+
+        if field_name == "employees" and column_name == "employee_count":
+            params[field_name] = _coerce_int(raw_value)
+        elif raw_value is None:
+            params[field_name] = None
+        else:
+            params[field_name] = str(raw_value).strip() or None
+
+        assignments.append(f"{column_name} = :{field_name}")
+
+    if not assignments:
+        return _error_response(
+            400,
+            "invalid_request_body",
+            "None of the provided fields can be updated with current schema.",
+        )
+
+    if "updated_at" in columns:
+        assignments.append("updated_at = CURRENT_TIMESTAMP")
+
+    db.session.execute(
+        text(f"""
+            UPDATE companies
+            SET {', '.join(assignments)}
+            WHERE id = :company_id
+            """),
+        params,
+    )
+    db.session.commit()
+
+    try:
+        return _get_company(company_id)
+    except OperationalError:
+        return _supabase_get_company(company_id)
 
 
 def _error_response(status: int, code: str, message: str, details: dict | None = None):
@@ -1106,3 +1724,65 @@ def register_routes(app: Flask) -> None:
             return _get_company(company_id)
         except OperationalError:
             return _supabase_get_company(company_id)
+
+    @app.post("/companies")
+    def create_company_listing():
+        payload, error = _request_json_object()
+        if error:
+            return error
+
+        try:
+            return _create_company_listing(payload)
+        except OperationalError:
+            db.session.rollback()
+            return _error_response(
+                503,
+                "data_source_unavailable",
+                "Could not create company listing due to database connectivity.",
+            )
+
+    @app.post("/companies/<int:company_id>/claims")
+    def create_company_claim(company_id: int):
+        user, error = _require_authenticated_user()
+        if error:
+            return error
+
+        payload, error = _request_json_object()
+        if error:
+            return error
+
+        try:
+            return _create_claim_request(
+                company_id=company_id, payload=payload, user=user
+            )
+        except OperationalError:
+            db.session.rollback()
+            return _error_response(
+                503,
+                "data_source_unavailable",
+                "Could not create claim due to database connectivity.",
+            )
+
+    @app.patch("/companies/<int:company_id>")
+    def update_company_protected_fields(company_id: int):
+        user, error = _require_authenticated_user()
+        if error:
+            return error
+
+        payload, error = _request_json_object()
+        if error:
+            return error
+
+        try:
+            return _update_company_protected_fields(
+                company_id=company_id,
+                payload=payload,
+                user=user,
+            )
+        except OperationalError:
+            db.session.rollback()
+            return _error_response(
+                503,
+                "data_source_unavailable",
+                "Could not update company due to database connectivity.",
+            )

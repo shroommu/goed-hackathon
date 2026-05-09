@@ -30,3 +30,16 @@ class Company(db.Model):
     sector = db.Column(db.Text, nullable=True)
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
+
+
+class ClaimRequest(db.Model):
+    __tablename__ = "claim_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.Text, nullable=True)
+    submitter_name = db.Column(db.Text, nullable=True)
+    submitter_email = db.Column(db.Text, nullable=True)
+    status = db.Column(db.Text, nullable=False)
+    message = db.Column(db.Text, nullable=True)
+    requested_updates = db.Column(db.JSON, nullable=True)

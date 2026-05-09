@@ -29,6 +29,7 @@ Set your Supabase Postgres URL in `.env`:
 DATABASE_URL=postgresql://postgres.<project-ref>:<password>@<host>:5432/postgres
 DB_SSLMODE=require
 SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<publishable-or-anon-key>
 SUPABASE_SECRET_KEY=<secret-key>
 ```
 
@@ -118,8 +119,10 @@ gunicorn --bind 0.0.0.0:${PORT} wsgi:app
 - `DATABASE_URL`: SQLAlchemy database URL (Supabase/Postgres)
 - `DB_SSLMODE`: SSL mode for Postgres connections (recommended: `require`)
 - `SUPABASE_URL`: Supabase project URL for REST fallback (`https://<project-ref>.supabase.co`)
+- `SUPABASE_PUBLISHABLE_KEY`: publishable (or legacy anon) key used for server-side token verification against `GET /auth/v1/user`
 - `SUPABASE_SECRET_KEY`: server-side key used by REST fallback
 - `SUPABASE_REST_TIMEOUT_SECONDS`: timeout for REST fallback requests (default: `10`)
+- `SUPABASE_AUTH_TIMEOUT_SECONDS`: timeout for auth verification requests (default: `10`)
 
 ## Endpoints
 
@@ -328,3 +331,70 @@ Additional code used by resource endpoints:
 Additional codes used by company endpoints:
 - `company_not_found`
 - `companies_not_found`
+
+- `POST /companies`
+  - Purpose: submit a self-service company listing.
+  - Required JSON body fields:
+    - `startup_name` (string)
+    - `website` (string)
+  - Optional JSON fields:
+    - `description`, `stage`, `employees`, `sector`, `full_address`, `linkedin`, `display_type`
+  - Returns `201` JSON:
+
+```json
+{
+  "item": {
+    "id": 42,
+    "startup_name": "Bright Labs",
+    "website": "https://brightlabs.dev"
+  },
+  "duplicate_domain_matches": [12]
+}
+```
+
+- `POST /companies/<company_id>/claims`
+  - Purpose: submit a claim for an existing company.
+  - Auth: `Authorization: Bearer <supabase-access-token>`.
+  - Required JSON body fields:
+    - `role_at_company` (string)
+  - Optional JSON fields:
+    - `claimant_note` (string)
+  - Returns `201` JSON:
+
+```json
+{
+  "item": {
+    "id": 7,
+    "company_id": 42,
+    "user_id": "00000000-0000-0000-0000-000000000000",
+    "status": "pending",
+    "role_at_company": "Founder",
+    "claimant_note": "I am the founder."
+  }
+}
+```
+
+- `PATCH /companies/<company_id>`
+  - Purpose: update owner-protected company fields.
+  - Auth: `Authorization: Bearer <supabase-access-token>`.
+  - Allowed JSON body fields:
+    - `description`, `website`, `stage`, `employees`, `sector`, `full_address`, `linkedin`
+  - Permission rule:
+    - caller must have a `verified` claim for this company.
+
+Additional BE-008 related error codes:
+- `missing_auth_token`
+- `invalid_auth_token`
+- `auth_unavailable`
+- `auth_provider_error`
+- `invalid_request_body`
+- `claim_conflict`
+- `ownership_required`
+
+## Apply BE-008 Migration
+
+Apply the BE-008 migration after BE-002:
+
+```bash
+psql "$DATABASE_URL" -f db/migrations/0002_be008_self_service_claims.sql
+```
