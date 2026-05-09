@@ -27,6 +27,10 @@ const LeafletClusterMap = dynamic(() => import("@/components/LeafletClusterMap")
   ssr: false
 });
 
+const BubbleClusterView = dynamic(() => import("@/components/BubbleClusterView"), {
+  ssr: false
+});
+
 const UTAH_BOUNDS = {
   minLat: 36.95,
   maxLat: 42.05,
@@ -272,6 +276,8 @@ function MapPageContent() {
   useEffect(() => {
     if (hasActiveFilters(draftFilters)) {
       setActiveView("mindmap");
+    } else {
+      setActiveView("map");
     }
   }, [draftFilters]);
 
@@ -402,6 +408,7 @@ function MapPageContent() {
     };
     setDraftFilters(cleared);
     updateSearchParams(cleared);
+    setActiveView("map");
   }
 
   const desktopSelectedSector =
@@ -555,12 +562,28 @@ function MapPageContent() {
                 <Typography>Loading company data...</Typography>
               </Stack>
             ) : activeView === "map" ? (
-              <LeafletClusterMap
-                mappedCompanies={mappedCompanies}
-                unmappedCompanies={unmappedCompanies}
+              <Box
+                sx={{
+                  opacity: activeView === "map" ? 1 : 0,
+                  transform: activeView === "map" ? "scale(1)" : "scale(0.95)",
+                  transition: "opacity 0.4s ease, transform 0.4s ease"
+                }}
+              >
+                <LeafletClusterMap
+                  mappedCompanies={mappedCompanies}
+                  unmappedCompanies={unmappedCompanies}
+                  onSelectCompany={setSelectedCompanyId}
+                  mapCenter={mapCenter}
+                  utahLeafletBounds={utahLeafletBounds}
+                />
+              </Box>
+            ) : filtersAreActive && !isMobile ? (
+              <BubbleClusterView
+                companiesPayload={companiesPayload}
+                filters={appliedFilters}
+                selectedCompanyId={selectedCompanyId}
                 onSelectCompany={setSelectedCompanyId}
-                mapCenter={mapCenter}
-                utahLeafletBounds={utahLeafletBounds}
+                onClearFilters={handleClearFilters}
               />
             ) : isMobile ? (
               <Stack spacing={2}>
