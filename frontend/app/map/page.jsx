@@ -15,7 +15,6 @@ import {
   Stack,
   TextField,
   Typography,
-  useMediaQuery,
   useTheme
 } from "@mui/material";
 import Link from "next/link";
@@ -174,9 +173,9 @@ function MapPageContent() {
 
   useEffect(() => {
     if (hasActiveFilters(draftFilters)) {
-      setActiveView("mindmap");
-    } else {
       setActiveView("bubble");
+    } else {
+      setActiveView("map");
     }
   }, [draftFilters]);
 
@@ -223,7 +222,7 @@ function MapPageContent() {
     }
   }, [companiesPayload.items, selectedCompanyId]);
 
-  useEffect(() => {
+  const updateSearchParams = useCallback(
     (nextFilters) => {
       const params = new URLSearchParams(searchParams.toString());
 
@@ -261,7 +260,7 @@ function MapPageContent() {
     event.preventDefault();
     updateSearchParams(draftFilters);
     if (hasActiveFilters(draftFilters)) {
-      setActiveView("mindmap");
+      setActiveView("bubble");
     }
   }
 
@@ -277,30 +276,17 @@ function MapPageContent() {
     setActiveView("map");
   }
 
-  const desktopSelectedSector =
-    sectors.find((sectorNode) => sectorNode.stages.some((stageNode) => stageNode.companies.some((company) => company.id === selectedCompanyId))) ||
-    sectors[0] ||
-    null;
-  const desktopSelectedStage =
-    desktopSelectedSector?.stages.find((stageNode) => stageNode.companies.some((company) => company.id === selectedCompanyId)) ||
-    desktopSelectedSector?.stages[0] ||
-    null;
-
-  const mobileSelectedSector = sectors.find((sectorNode) => sectorNode.name === mobileSector) || null;
-  const mobileSelectedStage =
-    mobileSelectedSector?.stages.find((stageNode) => stageNode.name === mobileStage) || null;
-
   return (
     <SiteShell>
       <Box component="section" aria-labelledby="map-title" sx={{ maxWidth: "52rem" }}>
         <Typography variant="overline" sx={{ letterSpacing: "0.08em", fontWeight: 700, color: "text.secondary" }}>
-          Utah Startububblerer
+          Utah Startup Explorer
         </Typography>
         <Typography id="map-title" variant="h1" sx={{ mt: 1, mb: 2, fontSize: { xs: "2rem", md: "3rem" } }}>
-          Switch between geo-cluster map and sector mindmap without losing filter context.
+          Explore Utah startups with map and bubble views
         </Typography>
         <Typography variant="body1" sx={{ color: "text.secondary" }}>
-          Filter by sector, company size, stage, or location. As filters change, the experience auto-shifts to a connected investor mindmap organized by sector, then stage, then company.
+          Filter by sector, company size, stage, or location. Switch between geographic map view and interactive bubble visualization to explore the startup ecosystem.
         </Typography>
       </Box>
 
@@ -308,7 +294,20 @@ function MapPageContent() {
         <CardContent sx={{ p: 3 }}>
           <Stack
             component="form"
-   
+            onSubmit={handleApplyFilters}
+            spacing={2}
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" }
+            }}
+          >
+            <TextField
+              label="Sector"
+              value={draftFilters.sector}
+              onChange={(event) => setDraftFilters((prev) => ({ ...prev, sector: event.target.value }))}
+              placeholder="ex: HealthTech"
+            />
+            <TextField
               select
               label="Company size"
               value={draftFilters.size}
@@ -330,10 +329,10 @@ function MapPageContent() {
               <MenuItem value="">Any</MenuItem>
               {STAGE_OPTIONS.map((value) => (
                 <MenuItem key={value} value={value}>
-          Explore Utah startups with map and bubble views
-        </Typography>
-        <Typography variant="body1" sx={{ color: "text.secondary" }}>
-          Filter by sector, company size, stage, or location. Switch between geographic map view and interactive bubble visualization to explore the startup ecosystem
+                  {formatValue(value)}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
               label="Location"
               value={draftFilters.location}
@@ -371,11 +370,11 @@ function MapPageContent() {
               Map view
             </Button>
             <Button
-              variant={activeView === "mindmap" ? "contained" : "outlined"}
-              onClick={() => setActiveView("mindmap")}
-              aria-pressed={activeView === "mindmap"}
+              variant={activeView === "bubble" ? "contained" : "outlined"}
+              onClick={() => setActiveView("bubble")}
+              aria-pressed={activeView === "bubble"}
             >
-              Mindmap view
+              Bubble view
             </Button>
           </Stack>
         </CardContent>
@@ -417,11 +416,11 @@ function MapPageContent() {
             ) : activeView === "map" ? (
               <Box
                 sx={{
-                  opacity: activeView =bubble" ? "contained" : "outlined"}
-              onClick={() => setActiveView("bubble")}
-              aria-pressed={activeView === "bubble"}
-            >
-              Bubble
+                  opacity: activeView === "map" ? 1 : 0,
+                  transform: activeView === "map" ? "scale(1)" : "scale(0.95)",
+                  transition: "opacity 0.4s ease, transform 0.4s ease"
+                }}
+              >
                 <LeafletClusterMap
                   mappedCompanies={mappedCompanies}
                   unmappedCompanies={unmappedCompanies}
@@ -430,7 +429,7 @@ function MapPageContent() {
                   utahLeafletBounds={utahLeafletBounds}
                 />
               </Box>
-            ) : filtersAreActive && !isMobile ? (
+            ) : (
               <BubbleClusterView
                 companiesPayload={companiesPayload}
                 filters={appliedFilters}
@@ -438,19 +437,19 @@ function MapPageContent() {
                 onSelectCompany={setSelectedCompanyId}
                 onClearFilters={handleClearFilters}
               />
-            ) : isMobile ? (
-              <Stack spacing={2}>
-                <Typography variant="h2" sx={{ fontSize: "1.25rem" }}>
-                  Mobile drill-down
-                </Typography>
-                (
-              <BubbleClusterView
-                companiesPayload={companiesPayload}
-                filters={appliedFilters}
-                selectedCompanyId={selectedCompanyId}
-                onSelectCompany={setSelectedCompanyId}
-                onClearFilters={handleClearFilters}
-              /ect a marker or mindmap node to load company profile details from the backend detail endpoint.
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="h2" sx={{ fontSize: "1.2rem", mb: 1.5 }}>
+              Company detail
+            </Typography>
+
+            {!selectedCompanyId && (
+              <Typography color="text.secondary">
+                Select a marker or bubble to load company profile details from the backend detail endpoint.
               </Typography>
             )}
 
