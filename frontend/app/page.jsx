@@ -22,58 +22,83 @@ export default function HomePage() {
         </Typography>
       </Box>
 
-      <Box
-        component="section"
-        id="get-started"
-        aria-label="Choose your mode"
-        sx={{
-          mt: 5,
-          display: "grid",
-          gap: 2,
-          gridTemplateColumns: "repeat(auto-fit, minmax(16rem, 1fr))"
-        }}
-      >
-        <Card>
-          <CardContent sx={{ p: 3 }}>
-            <Typography variant="h2" sx={{ mb: 1, fontSize: "1.5rem" }}>
-              Resource Navigator
+      <Stack component="section" id="get-started" aria-label="Choose your mode" spacing={3} sx={{ mt: 5 }}>
+        <Box
+          aria-labelledby="entrepreneur-header"
+          sx={{
+            p: { xs: 2, md: 3 },
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+            backgroundColor: "rgba(15, 118, 110, 0.04)"
+          }}
+        >
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+            <Chip label="Entrepreneurs" color="primary" size="small" />
+            <Typography id="entrepreneur-header" variant="h2" sx={{ fontSize: "1.3rem" }}>
+              Build your company with guided support
             </Typography>
-            <Typography color="text.secondary" sx={{ mb: 2 }}>
-              Share your goals and focus. Get ranked resources with clear reasons and next steps.
+          </Stack>
+          <Card>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h3" sx={{ mb: 1, fontSize: "1.5rem" }}>
+                Resource Navigator
+              </Typography>
+              <Typography color="text.secondary" sx={{ mb: 2 }}>
+                Share your goals and focus. Get ranked resources with clear reasons and next steps.
+              </Typography>
+              <Button
+                component={Link}
+                href="/navigator?entry=landing&mode=guided"
+                variant="contained"
+                color="primary"
+                size="large"
+                fullWidth
+              >
+                Start navigator
+              </Button>
+            </CardContent>
+          </Card>
+        </Box>
+
+        <Box
+          aria-labelledby="investor-header"
+          sx={{
+            p: { xs: 2, md: 3 },
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+            backgroundColor: "rgba(15, 23, 42, 0.04)"
+          }}
+        >
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+            <Chip label="Investors" color="default" size="small" />
+            <Typography id="investor-header" variant="h2" sx={{ fontSize: "1.3rem" }}>
+              Discover Utah startups and investment signals
             </Typography>
-            <Button
-              component={Link}
-              href="/navigator?entry=landing&mode=guided"
-              variant="contained"
-              color="primary"
-              size="large"
-              fullWidth
-            >
-              Start navigator
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent sx={{ p: 3 }}>
-            <Typography variant="h2" sx={{ mb: 1, fontSize: "1.5rem" }}>
-              Utah Startup Map
-            </Typography>
-            <Typography color="text.secondary" sx={{ mb: 2 }}>
-              Browse companies by sector, stage, and hiring signals to explore opportunity clusters fast.
-            </Typography>
-            <Button
-              component={Link}
-              href="/map?entry=landing&mode=investor"
-              variant="contained"
-              color="primary"
-              size="large"
-              fullWidth
-            >
-              Explore map flow
-            </Button>
-          </CardContent>
-        </Card>
-      </Box>
+          </Stack>
+          <Card>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h3" sx={{ mb: 1, fontSize: "1.5rem" }}>
+                Utah Startup Map
+              </Typography>
+              <Typography color="text.secondary" sx={{ mb: 2 }}>
+                Browse companies by sector, stage, and hiring signals to explore opportunity clusters fast.
+              </Typography>
+              <Button
+                component={Link}
+                href="/map?entry=landing&mode=investor"
+                variant="contained"
+                color="primary"
+                size="large"
+                fullWidth
+              >
+                Explore map flow
+              </Button>
+            </CardContent>
+          </Card>
+        </Box>
+      </Stack>
 
       <Box
         component="section"
