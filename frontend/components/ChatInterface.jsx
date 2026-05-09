@@ -1,6 +1,16 @@
 "use client";
 
-import { Alert, Box, Button, Stack } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Stack
+} from "@mui/material";
 import { useEffect, useState } from "react";
 import ChatComposer from "./ChatComposer";
 import ChatMessageThread from "./ChatMessageThread";
@@ -35,6 +45,7 @@ export default function ChatInterface() {
   const [error, setError] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
   // Initialize session on mount
   useEffect(() => {
@@ -150,6 +161,7 @@ export default function ChatInterface() {
     setContext({});
     setError(null);
     setSessionId(getSessionId());
+    setClearConfirmOpen(false);
   };
 
   if (!isInitialized) {
@@ -170,6 +182,52 @@ export default function ChatInterface() {
         overflow: "hidden"
       }}
     >
+      <Box
+        sx={{
+          flexShrink: 0,
+          px: { xs: 1.5, sm: 2 },
+          py: 1,
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
+          borderBottom: 1,
+          borderColor: "divider",
+          bgcolor: "background.paper"
+        }}
+      >
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => setClearConfirmOpen(true)}
+          aria-label="Clear chat session and start over"
+        >
+          Clear session
+        </Button>
+      </Box>
+
+      <Dialog
+        open={clearConfirmOpen}
+        onClose={() => setClearConfirmOpen(false)}
+        aria-labelledby="clear-session-dialog-title"
+        aria-describedby="clear-session-dialog-description"
+      >
+        <DialogTitle id="clear-session-dialog-title">Clear session?</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="clear-session-dialog-description">
+            This removes your conversation and saved context from this device. You can start a fresh
+            chat afterward.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setClearConfirmOpen(false)} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={handleClearSession} variant="contained" color="primary" autoFocus>
+            Clear session
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Error banner */}
       {error && (
         <Alert
@@ -216,15 +274,6 @@ export default function ChatInterface() {
         disabled={isLoading}
         placeholder="Ask about programs, funding, mentorship..."
       />
-
-      {/* Debug: Clear session button (remove in production) */}
-      {process.env.NODE_ENV === "development" && messages.length > 1 && (
-        <Box sx={{ p: 1, textAlign: "center", bgcolor: "background.paper" }}>
-          <Button size="small" onClick={handleClearSession} variant="outlined">
-            Clear Session
-          </Button>
-        </Box>
-      )}
     </Stack>
   );
 }
