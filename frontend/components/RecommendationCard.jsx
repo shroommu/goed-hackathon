@@ -11,8 +11,9 @@ import { splitResourceTags } from "../lib/tagUtils";
 
 const chipSx = {
   fontSize: "0.75rem",
-  maxWidth: "100%",
+  flexShrink: 0,
   height: "auto",
+  maxWidth: "18rem",
   "& .MuiChip-label": {
     whiteSpace: "normal",
     overflow: "visible",
@@ -26,7 +27,19 @@ function TagChipRow({ items }) {
     return null;
   }
   return (
-    <Stack direction="row" useFlexGap flexWrap="wrap" spacing={0.75}>
+    <Stack
+      direction="row"
+      useFlexGap
+      flexWrap="nowrap"
+      spacing={0.75}
+      sx={{
+        overflowX: "auto",
+        width: "100%",
+        minWidth: 0,
+        pb: 0.5,
+        WebkitOverflowScrolling: "touch"
+      }}
+    >
       {items.map((label, idx) => (
         <Chip
           key={`${idx}-${label}`}
