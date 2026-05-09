@@ -8,39 +8,19 @@ import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import MarkerClusterGroup from "@changey/react-leaflet-markercluster";
 import L from "leaflet";
 
-// Extract domain from URL
-function extractDomain(url) {
-  if (!url) return null;
-  try {
-    const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
-    return urlObj.hostname.replace(/^www\./, '');
-  } catch {
-    return null;
-  }
-}
-
-// Create custom marker icon with company logo
+// Create custom marker icon with colored letter
 function createCompanyIcon(company) {
-  let logoUrl = null;
+  // Get first letter of company name for the icon
+  const firstLetter = (company.startup_name || '?')[0].toUpperCase();
   
-  // Try to get domain from website first, then LinkedIn
-  const domain = extractDomain(company.website) || extractDomain(company.linkedin);
+  // Generate a color based on the first letter for visual variety
+  const colorIndex = firstLetter.charCodeAt(0) % 10;
+  const colors = ['#4A90E2', '#7B68EE', '#50C878', '#FF6B6B', '#FFA500', '#9B59B6', '#3498DB', '#E74C3C', '#1ABC9C', '#F39C12'];
+  const bgColor = colors[colorIndex];
   
-  if (domain) {
-    // Use Clearbit Logo API
-    logoUrl = `https://logo.clearbit.com/${domain}`;
-  }
-  
-  const iconHtml = logoUrl
-    ? `<div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.3); background: #fff;">
-         <img src="${logoUrl}" 
-              style="width: 100%; height: 100%; object-fit: cover;" 
-              onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;background:#e0e0e0;display:flex;align-items:center;justify-content:center;font-size:18px;color:#666;\\'>?</div>';"
-              alt="${company.startup_name || 'Company'} logo" />
-       </div>`
-    : `<div style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.3); background: #e0e0e0; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #666;">
-         ?
-       </div>`;
+  const iconHtml = `<div style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.3); background: ${bgColor}; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff; font-weight: bold;">
+       ${firstLetter}
+     </div>`;
   
   return L.divIcon({
     html: iconHtml,
