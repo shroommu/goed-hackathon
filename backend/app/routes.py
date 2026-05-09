@@ -104,7 +104,9 @@ def _supabase_request_headers() -> tuple[dict[str, str] | None, tuple | None]:
     )
 
 
-def _supabase_count_from_content_range(content_range: str | None, returned_items: int) -> int:
+def _supabase_count_from_content_range(
+    content_range: str | None, returned_items: int
+) -> int:
     if not content_range or "/" not in content_range:
         return returned_items
     total_part = content_range.split("/")[-1].strip()
@@ -267,7 +269,9 @@ def _supabase_get_resource(resource_id: int):
     return jsonify({"item": _resource_from_supabase_row(rows[0])}), 200
 
 
-def _company_from_supabase_row(row: dict, *, photo_gallery: list[str] | None = None) -> dict:
+def _company_from_supabase_row(
+    row: dict, *, photo_gallery: list[str] | None = None
+) -> dict:
     mapped = {
         "id": row.get("id"),
         "display_type": row.get("display_type"),
@@ -683,7 +687,9 @@ def _company_location_sql(columns: set[str]) -> str:
     return "''"
 
 
-def _normalize_company_row(row: dict, *, photo_gallery: list[str] | None = None) -> dict:
+def _normalize_company_row(
+    row: dict, *, photo_gallery: list[str] | None = None
+) -> dict:
     employees = _normalize_company_string(row.get("employees"))
     employee_count = _coerce_int(employees)
     address = _normalize_company_string(row.get("full_address"))
@@ -725,7 +731,10 @@ def _build_mindmap_hierarchy(companies: list[dict]) -> list[dict]:
         for stage in sorted(stages.keys(), key=lambda value: value.lower()):
             companies_for_stage = sorted(
                 stages[stage],
-                key=lambda item: (str(item.get("name") or "").lower(), item.get("id") or 0),
+                key=lambda item: (
+                    str(item.get("name") or "").lower(),
+                    item.get("id") or 0,
+                ),
             )
             stage_nodes.append({"name": stage, "companies": companies_for_stage})
         sectors.append({"name": sector, "stages": stage_nodes})
@@ -803,8 +812,7 @@ def _list_companies(
         )
 
     select_sql = _build_company_select(columns)
-    list_sql = text(
-        f"""
+    list_sql = text(f"""
         SELECT {select_sql}
         FROM companies
         {where_sql}
@@ -814,8 +822,7 @@ def _list_companies(
             LOWER(COALESCE({name_sql}, '')) ASC,
             id ASC
         LIMIT :limit OFFSET :offset
-        """
-    )
+        """)
 
     params = {
         **bind_params,
@@ -856,14 +863,12 @@ def _company_photo_gallery(company_id: int) -> list[str]:
         return []
 
     rows = db.session.execute(
-        text(
-            """
+        text("""
             SELECT media_url
             FROM company_media
             WHERE company_id = :company_id
             ORDER BY sort_order ASC, id ASC
-            """
-        ),
+            """),
         {"company_id": company_id},
     ).mappings()
     return [
@@ -879,14 +884,12 @@ def _get_company(company_id: int):
 
     row = (
         db.session.execute(
-            text(
-                f"""
+            text(f"""
                 SELECT {select_sql}
                 FROM companies
                 WHERE id = :company_id
                 LIMIT 1
-                """
-            ),
+                """),
             {"company_id": company_id},
         )
         .mappings()
@@ -1002,7 +1005,9 @@ def register_routes(app: Flask) -> None:
                         "page": page,
                         "per_page": per_page,
                         "total": total,
-                        "total_pages": (total + per_page - 1) // per_page if total else 0,
+                        "total_pages": (
+                            (total + per_page - 1) // per_page if total else 0
+                        ),
                     },
                     "filters": {
                         "communities": communities,
