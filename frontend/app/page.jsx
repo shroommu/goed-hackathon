@@ -1,15 +1,10 @@
 "use client";
 
 import SiteShell from "@/components/SiteShell";
-import { trackLandingCta } from "@/lib/analytics";
 import { Box, Button, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
 import Link from "next/link";
 
 export default function HomePage() {
-  const handleTrack = (ctaId, mode, destination) => () => {
-    trackLandingCta({ ctaId, mode, destination });
-  };
-
   return (
     <SiteShell>
       <Box component="section" aria-labelledby="hero-title" sx={{ maxWidth: "48rem" }}>
@@ -53,7 +48,6 @@ export default function HomePage() {
               color="primary"
               size="large"
               fullWidth
-              onClick={handleTrack("home_navigator_primary", "guided", "/navigator")}
             >
               Start navigator
             </Button>
@@ -75,7 +69,6 @@ export default function HomePage() {
               size="large"
               fullWidth
               sx={{ backgroundColor: "#ede7d8", borderColor: "#d7d2c7" }}
-              onClick={handleTrack("home_map_primary", "investor", "/map")}
             >
               Explore map flow
             </Button>
