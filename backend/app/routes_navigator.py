@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 BE016_CANDIDATE_LIMIT = 20
 BE016_MAX_RECOMMENDATIONS = 5
-BE016_TIMEOUT_BUDGET_MS = 3000
 BE016_FALLBACK_RATIONALE = (
     "Selected via deterministic fallback ranking based on your provided context."
 )
@@ -613,7 +612,8 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
             }
 
             llm_started_at = time.monotonic()
-            llm_budget_seconds = BE016_TIMEOUT_BUDGET_MS / 1000.0
+            # Use LLM_TIMEOUT_SECONDS from env (see config.py); prod needs headroom vs. dev latency.
+            llm_budget_seconds = float(current_app.config.get("LLM_TIMEOUT_SECONDS", 30))
 
             # Try to use LLM
             llm_client = get_llm_client(timeout_seconds=llm_budget_seconds)
