@@ -57,40 +57,48 @@ export default function ContextChips({ context, onContextUpdate }) {
 
   return (
     <Stack
-      direction="row"
-      spacing={1}
-      flexWrap="wrap"
       sx={{
-        rowGap: 1,
         px: { xs: 2, sm: 3 },
         py: 1.5,
         bgcolor: "background.paper",
         borderTop: 1,
-        borderColor: "divider",
-        overflowX: { xs: "auto", sm: "visible" },
-        overflowY: "visible"
+        borderColor: "divider"
       }}
-      role="group"
-      aria-label="Conversation context"
     >
-      {chips.map((chip) => (
-        <Chip
-          key={chip.key}
-          label={`${chip.label}: ${chip.value}`}
-          onClick={() => handleChipClick(chipFields.find((f) => f.key === chip.key))}
-          color="primary"
-          variant="outlined"
-          size="small"
-          sx={{
-            cursor: "pointer",
-            flexShrink: { xs: 0, sm: 1 },
-            "&:hover": {
-              bgcolor: "primary.light",
-              color: "primary.contrastText"
-            }
-          }}
-        />
-      ))}
+      <Stack
+        direction="row"
+        spacing={1}
+        flexWrap="wrap"
+        sx={{
+          width: "100%",
+          maxWidth: "58rem",
+          mx: "auto",
+          rowGap: 1,
+          overflowX: { xs: "auto", sm: "visible" },
+          overflowY: "visible"
+        }}
+        role="group"
+        aria-label="Conversation context"
+      >
+        {chips.map((chip) => (
+          <Chip
+            key={chip.key}
+            label={`${chip.label}: ${chip.value}`}
+            onClick={() => handleChipClick(chipFields.find((f) => f.key === chip.key))}
+            color="primary"
+            variant="outlined"
+            size="small"
+            sx={{
+              cursor: "pointer",
+              flexShrink: { xs: 0, sm: 1 },
+              "&:hover": {
+                bgcolor: "primary.light",
+                color: "primary.contrastText"
+              }
+            }}
+          />
+        ))}
+      </Stack>
     </Stack>
   );
 }

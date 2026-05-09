@@ -25,11 +25,7 @@ export default function ChatComposer({ onSendMessage, disabled, placeholder }) {
 
   return (
     <Box
-      component="form"
-      onSubmit={handleSubmit}
       sx={{
-        display: "flex",
-        gap: 1,
         p: { xs: 2, sm: 3 },
         bgcolor: "background.paper",
         borderTop: 1,
@@ -39,46 +35,58 @@ export default function ChatComposer({ onSendMessage, disabled, placeholder }) {
         zIndex: 1
       }}
     >
-      <TextField
-        fullWidth
-        multiline
-        maxRows={4}
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyPress={handleKeyPress}
-        placeholder={placeholder || "Type your message..."}
-        disabled={disabled}
-        variant="outlined"
-        size="medium"
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
         sx={{
-          "& .MuiOutlinedInput-root": {
-            borderRadius: 3
-          }
+          width: "100%",
+          maxWidth: "58rem",
+          mx: "auto",
+          display: "flex",
+          gap: 1
         }}
-        inputProps={{
-          "aria-label": "Chat message input"
-        }}
-      />
-      <IconButton
-        type="submit"
-        color="primary"
-        disabled={disabled || !input.trim()}
-        size="large"
-        sx={{
-          alignSelf: "flex-end",
-          bgcolor: "primary.main",
-          color: "primary.contrastText",
-          "&:hover": {
-            bgcolor: "primary.dark"
-          },
-          "&:disabled": {
-            bgcolor: "action.disabledBackground"
-          }
-        }}
-        aria-label="Send message"
       >
-        <Send />
-      </IconButton>
+        <TextField
+          fullWidth
+          multiline
+          maxRows={4}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder={placeholder || "Type your message..."}
+          disabled={disabled}
+          variant="outlined"
+          size="medium"
+          sx={{
+            "& .MuiOutlinedInput-root": {
+              borderRadius: 3
+            }
+          }}
+          inputProps={{
+            "aria-label": "Chat message input"
+          }}
+        />
+        <IconButton
+          type="submit"
+          color="primary"
+          disabled={disabled || !input.trim()}
+          size="large"
+          sx={{
+            alignSelf: "flex-end",
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
+            "&:hover": {
+              bgcolor: "primary.dark"
+            },
+            "&:disabled": {
+              bgcolor: "action.disabledBackground"
+            }
+          }}
+          aria-label="Send message"
+        >
+          <Send />
+        </IconButton>
+      </Box>
     </Box>
   );
 }

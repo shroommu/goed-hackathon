@@ -298,13 +298,13 @@ function MapPageContent() {
 
       <Card sx={{ mt: 4 }}>
         <CardContent sx={{ p: 3 }}>
-          <Stack
+          <Box
             component="form"
             onSubmit={handleApplyFilters}
-            spacing={2}
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" }
+              gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" },
+              gap: 2
             }}
           >
             <TextField
@@ -365,7 +365,7 @@ function MapPageContent() {
                 />
               </Stack>
             </Stack>
-          </Stack>
+          </Box>
 
           <Stack direction="row" spacing={1} sx={{ mt: 3 }}>
             <Button

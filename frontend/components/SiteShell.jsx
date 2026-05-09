@@ -119,7 +119,14 @@ export default function SiteShell({ children }) {
       </Drawer>
 
       <Box component="main" id="main-content" tabIndex={-1}>
-        <Container maxWidth="lg" sx={{ py: { xs: 6, md: 8 } }}>
+        <Container
+          maxWidth="lg"
+          sx={{
+            py: { xs: 6, md: 8 },
+            px: { xs: 2, md: 3 },
+            width: "100%"
+          }}
+        >
           {children}
         </Container>
       </Box>

@@ -155,10 +155,15 @@ export default function ChatInterface() {
   return (
     <Stack
       sx={{
-        height: "100vh",
+        height: { xs: "70vh", md: "72vh" },
+        minHeight: { xs: 480, md: 560 },
         display: "flex",
         flexDirection: "column",
-        bgcolor: "background.default"
+        bgcolor: "background.default",
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 2,
+        overflow: "hidden"
       }}
     >
       {/* Error banner */}
@@ -180,11 +185,13 @@ export default function ChatInterface() {
       )}
 
       {/* Message thread */}
-      <ChatMessageThread
-        messages={messages}
-        isLoading={isLoading}
-        showWelcome={messages.length === 1 && messages[0].id === "welcome"}
-      />
+      <Box sx={{ flex: 1, overflow: "hidden" }}>
+        <ChatMessageThread
+          messages={messages}
+          isLoading={isLoading}
+          showWelcome={messages.length === 1 && messages[0].id === "welcome"}
+        />
+      </Box>
 
       {/* Context chips */}
       {Object.keys(context).length > 0 && (

@@ -48,18 +48,20 @@ export default function ChatMessageThread({ messages, isLoading, showWelcome }) 
       aria-label="Chat messages"
       aria-live="polite"
     >
-      {messages.map((message, index) => (
-        <ChatMessage
-          key={message.id || index}
-          message={message}
-          isLatest={index === messages.length - 1}
-        />
-      ))}
+      <Box sx={{ width: "100%", maxWidth: "58rem", mx: "auto" }}>
+        {messages.map((message, index) => (
+          <ChatMessage
+            key={message.id || index}
+            message={message}
+            isLatest={index === messages.length - 1}
+          />
+        ))}
 
-      {isLoading && <TypingIndicator />}
+        {isLoading && <TypingIndicator />}
 
-      {/* Scroll anchor */}
-      <div ref={messagesEndRef} />
+        {/* Scroll anchor */}
+        <div ref={messagesEndRef} />
+      </Box>
     </Box>
   );
 }
