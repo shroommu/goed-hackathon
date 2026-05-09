@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 
 from .commands.seed import register_seed_command
 from .config import get_config
@@ -9,6 +10,7 @@ from .routes import register_routes
 
 def create_app() -> Flask:
     app = Flask(__name__)
+    CORS(app)
 
     config_class, app_env = get_config()
     app.config.from_object(config_class)
