@@ -1,31 +1,31 @@
 /**
  * Navigator API client for conversational resource recommendations
  * Integrates with BE-014 endpoint: POST /api/navigator/chat/message
+ *
+ * Always use relative paths - Next.js rewrites handle routing
  */
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
 
 /**
  * Send a chat message and get AI response with recommendations
- * 
+ *
  * @param {string} message - User's message
  * @param {Object} context - Current conversation context
  * @returns {Promise<Object>} Response with assistant_message, derived_context, recommendations
  * @throws {Error} With code and message properties for error handling
  */
 export async function sendChatMessage(message, context = {}) {
-  const endpoint = `${BASE_URL}/api/navigator/chat/message`;
+  const endpoint = "/api/navigator/chat/message";
 
   try {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         message,
-        context
-      })
+        context,
+      }),
     });
 
     if (!response.ok) {
@@ -58,13 +58,13 @@ export async function sendChatMessage(message, context = {}) {
       assistantMessage: data.assistant_message,
       derivedContext: data.derived_context || {},
       recommendations: data.recommendations || [],
-      followUpQuestion: data.follow_up_question || null
+      followUpQuestion: data.follow_up_question || null,
     };
   } catch (error) {
     // Enhance error with user-friendly messages
     if (error.name === "TypeError" && error.message.includes("fetch")) {
       const networkError = new Error(
-        "Unable to connect to the server. Please check your internet connection."
+        "Unable to connect to the server. Please check your internet connection.",
       );
       networkError.code = "network_error";
       throw networkError;
@@ -78,7 +78,7 @@ export async function sendChatMessage(message, context = {}) {
         llm_error: "The AI service encountered an issue. Please try again.",
         no_resources_found:
           "No matching resources found. Let's try a different approach.",
-        internal_error: "Something went wrong. Please try again."
+        internal_error: "Something went wrong. Please try again.",
       };
 
       error.userMessage = errorMessages[error.code] || error.message;
@@ -107,7 +107,7 @@ export function formatRecommendations(recommendations) {
     topics: rec.topics || "",
     industries: rec.industries || "",
     communities: rec.communities || "",
-    locations: rec.locations || ""
+    locations: rec.locations || "",
   }));
 }
 
@@ -121,7 +121,7 @@ export function isRecoverableError(error) {
     "network_error",
     "llm_timeout",
     "llm_error",
-    "internal_error"
+    "internal_error",
   ];
 
   return recoverableCodes.includes(error.code);
