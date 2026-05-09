@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any
 
 from flask import Blueprint, current_app, jsonify, request
@@ -12,6 +13,24 @@ from sqlalchemy import or_
 from .models import Resource
 
 logger = logging.getLogger(__name__)
+
+BE016_CANDIDATE_LIMIT = 20
+BE016_MAX_RECOMMENDATIONS = 5
+BE016_TIMEOUT_BUDGET_MS = 3000
+BE016_FALLBACK_RATIONALE = (
+    "Selected via deterministic fallback ranking based on your provided context."
+)
+
+LIGHT_EXPANSION_MAP: dict[str, list[str]] = {
+    "funding": ["grant", "capital", "investor", "loan"],
+    "hiring": ["talent", "recruit", "workforce"],
+    "mentorship": ["mentor", "advisor", "coaching"],
+    "networking": ["community", "events", "connections"],
+    "training": ["workshop", "education", "course"],
+    "software": ["saas", "technology", "it"],
+    "artificial intelligence": ["ai", "machine learning", "ml"],
+    "startup": ["founder", "entrepreneur", "early stage"],
+}
 
 
 def _error_response(status: int, code: str, message: str, details: dict | None = None):
@@ -41,8 +60,134 @@ def _resource_to_dict(resource: Resource) -> dict[str, Any]:
     }
 
 
+def _normalize_text_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        values = value
+    else:
+        values = [value]
+    cleaned = []
+    for item in values:
+        if item is None:
+            continue
+        text = str(item).strip().lower()
+        if text:
+            cleaned.append(text)
+    return cleaned
+
+
+def _collect_search_terms(context: dict[str, Any], message: str) -> list[str]:
+    """Collect deterministic retrieval terms with light synonym/tag expansion."""
+    terms: set[str] = set()
+
+    for field in ["stage", "industry", "location"]:
+        value = context.get(field)
+        if isinstance(value, str) and value.strip():
+            terms.add(value.strip().lower())
+
+    for field in ["objectives", "topics", "challenges"]:
+        for value in _normalize_text_list(context.get(field)):
+            terms.add(value)
+
+    message_keywords = [word.strip(".,!?;:()[]{}\"'").lower() for word in message.split()]
+    for keyword in message_keywords:
+        if len(keyword) >= 4:
+            terms.add(keyword)
+
+    # Apply light expansion for known common intents/tags.
+    expanded_terms = set(terms)
+    for term in terms:
+        if term in LIGHT_EXPANSION_MAP:
+            expanded_terms.update(LIGHT_EXPANSION_MAP[term])
+
+    return sorted(expanded_terms)[:12]
+
+
+def _is_context_sufficient(context: dict[str, Any]) -> bool:
+    """Require at least 2 high-value fields before recommendation generation."""
+    filled = 0
+    if context.get("stage"):
+        filled += 1
+    if context.get("industry"):
+        filled += 1
+    if context.get("location"):
+        filled += 1
+    if _normalize_text_list(context.get("objectives")):
+        filled += 1
+    return filled >= 2
+
+
+def _follow_up_question(context: dict[str, Any]) -> str:
+    missing = []
+    if not context.get("stage"):
+        missing.append("stage")
+    if not context.get("industry"):
+        missing.append("industry")
+    if not context.get("location"):
+        missing.append("location")
+    if not _normalize_text_list(context.get("objectives")):
+        missing.append("objective")
+
+    if not missing:
+        return "Could you share one more goal so I can narrow recommendations?"
+
+    target = ", ".join(missing[:2])
+    return f"Before I recommend programs, could you share your {target}?"
+
+
+def _is_validation_debug_enabled() -> bool:
+    header_enabled = request.headers.get("X-Admin-Debug", "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    query_enabled = request.args.get("debug", "").lower() in {"1", "true", "yes"}
+    return header_enabled or (current_app.config.get("DEBUG") and query_enabled)
+
+
+def _validate_and_enrich_recommendations(
+    llm_recommendations: list[dict[str, Any]],
+    candidates: list[Resource],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Drop hallucinated/invalid recs and enrich valid recs with source-of-truth data."""
+    resource_map = {resource.id: resource for resource in candidates}
+    enriched: list[dict[str, Any]] = []
+    validation_fail_reasons: list[str] = []
+
+    for rec in llm_recommendations[:BE016_MAX_RECOMMENDATIONS]:
+        resource_id = rec.get("id")
+        if resource_id not in resource_map:
+            validation_fail_reasons.append(f"unknown_resource_id:{resource_id}")
+            continue
+
+        resource = resource_map[resource_id]
+
+        # Enforce exact URL match when the LLM attempts to provide a URL.
+        llm_url = rec.get("url")
+        official_url = resource.link or ""
+        if llm_url is not None and str(llm_url) != official_url:
+            validation_fail_reasons.append(f"url_mismatch_for_resource_id:{resource_id}")
+            continue
+
+        enriched.append(
+            {
+                "id": resource.id,
+                "title": resource.title or "",
+                "description": resource.description or "",
+                "rationale": rec.get("rationale", ""),
+                "url": official_url,
+                "topics": resource.topics or "",
+                "industries": resource.industries or "",
+                "communities": resource.communities or "",
+            }
+        )
+
+    return enriched, validation_fail_reasons
+
+
 def search_resources(
-    context: dict[str, Any], message: str, limit: int = 20
+    context: dict[str, Any], message: str, limit: int = BE016_CANDIDATE_LIMIT
 ) -> list[Resource]:
     """
     Full-text search across Resource fields using context and message keywords.
@@ -57,53 +202,17 @@ def search_resources(
     """
     query = Resource.query.filter_by(archived=False)
 
-    # Build search conditions based on context
+    # Build deterministic retrieval conditions with light synonym/tag expansion.
     search_conditions = []
-
-    # Extract search terms from context
-    if context.get("industry"):
-        search_conditions.append(Resource.industries.ilike(f"%{context['industry']}%"))
-
-    if context.get("location"):
-        search_conditions.append(Resource.locations.ilike(f"%{context['location']}%"))
-
-    if context.get("topics"):
-        for topic in context["topics"]:
-            search_conditions.append(Resource.topics.ilike(f"%{topic}%"))
-
-    if context.get("objectives"):
-        for objective in context["objectives"]:
-            # Search across multiple fields for objectives
-            search_conditions.append(
-                or_(
-                    Resource.topics.ilike(f"%{objective}%"),
-                    Resource.title.ilike(f"%{objective}%"),
-                    Resource.description.ilike(f"%{objective}%"),
-                )
-            )
-
-    if context.get("challenges"):
-        for challenge in context["challenges"]:
-            search_conditions.append(
-                or_(
-                    Resource.topics.ilike(f"%{challenge}%"),
-                    Resource.description.ilike(f"%{challenge}%"),
-                )
-            )
-
-    # Extract keywords from message for broader search
-    # Simple tokenization - in production might use more sophisticated NLP
-    keywords = [
-        word.strip().lower() for word in message.split() if len(word.strip()) > 3
-    ]
-    for keyword in keywords[
-        :5
-    ]:  # Limit to top 5 keywords to avoid overly broad queries
+    for term in _collect_search_terms(context, message):
         search_conditions.append(
             or_(
-                Resource.title.ilike(f"%{keyword}%"),
-                Resource.description.ilike(f"%{keyword}%"),
-                Resource.topics.ilike(f"%{keyword}%"),
+                Resource.title.ilike(f"%{term}%"),
+                Resource.description.ilike(f"%{term}%"),
+                Resource.topics.ilike(f"%{term}%"),
+                Resource.industries.ilike(f"%{term}%"),
+                Resource.communities.ilike(f"%{term}%"),
+                Resource.locations.ilike(f"%{term}%"),
             )
         )
 
@@ -117,24 +226,34 @@ def search_resources(
 
     # Execute query with limit
     try:
-        resources = query.limit(limit).all()
-        logger.info(f"Query executed successfully, found {len(resources)} resources")
+        resources = query.order_by(Resource.id.asc()).limit(limit).all()
+        logger.info("Query executed successfully, found %s resources", len(resources))
         return resources
     except Exception as e:
-        logger.error(f"Database query failed: {type(e).__name__}: {str(e)}", exc_info=True)
+        logger.error(
+            "Database query failed: %s: %s", type(e).__name__, str(e), exc_info=True
+        )
         # Try a simpler query as fallback
         try:
             logger.info("Attempting fallback query")
             from .extensions import db
-            simple_resources = db.session.query(Resource).filter_by(archived=False).limit(limit).all()
-            logger.info(f"Fallback query succeeded with {len(simple_resources)} resources")
+            simple_resources = (
+                db.session.query(Resource)
+                .filter_by(archived=False)
+                .order_by(Resource.id.asc())
+                .limit(limit)
+                .all()
+            )
+            logger.info(
+                "Fallback query succeeded with %s resources", len(simple_resources)
+            )
             return simple_resources
         except Exception as fallback_error:
-            logger.error(f"Fallback query also failed: {fallback_error}", exc_info=True)
+            logger.error("Fallback query also failed: %s", fallback_error, exc_info=True)
             raise
 
 
-def get_llm_client() -> ChatOpenAI | None:
+def get_llm_client(timeout_seconds: float | None = None) -> ChatOpenAI | None:
     """
     Initialize LangChain ChatOpenAI client configured for OpenRouter.
 
@@ -146,6 +265,9 @@ def get_llm_client() -> ChatOpenAI | None:
         logger.warning("OPENROUTER_API_KEY not configured")
         return None
 
+    configured_timeout = current_app.config.get("LLM_TIMEOUT_SECONDS", 30)
+    client_timeout = timeout_seconds if timeout_seconds is not None else configured_timeout
+
     return ChatOpenAI(
         model=current_app.config.get(
             "OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct"
@@ -154,7 +276,7 @@ def get_llm_client() -> ChatOpenAI | None:
         openai_api_base=current_app.config.get(
             "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
         ),
-        timeout=current_app.config.get("LLM_TIMEOUT_SECONDS", 30),
+        timeout=client_timeout,
         temperature=0.7,
     )
 
@@ -335,32 +457,8 @@ def generate_deterministic_response(
     Returns top 5 candidates with template-based rationales.
     """
     recommendations = []
-    for resource in candidates[:5]:
-        # Generate simple template-based rationale
-        rationale_parts = []
-        if (
-            context.get("industry")
-            and resource.industries
-            and context["industry"].lower() in resource.industries.lower()
-        ):
-            rationale_parts.append(f"Relevant to {context['industry']}")
-        if (
-            context.get("location")
-            and resource.locations
-            and context["location"].lower() in resource.locations.lower()
-        ):
-            rationale_parts.append(f"Available in {context['location']}")
-        if context.get("topics"):
-            for topic in context["topics"]:
-                if resource.topics and topic.lower() in resource.topics.lower():
-                    rationale_parts.append(f"Covers {topic}")
-                    break
-
-        rationale = (
-            " • ".join(rationale_parts)
-            if rationale_parts
-            else "Matches your search criteria"
-        )
+    for resource in candidates[:BE016_MAX_RECOMMENDATIONS]:
+        rationale = BE016_FALLBACK_RATIONALE
 
         recommendations.append(
             {
@@ -453,10 +551,23 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                 if field in context and not isinstance(context[field], list):
                     context[field] = [context[field]]
 
+            if not _is_context_sufficient(context):
+                return (
+                    jsonify(
+                        {
+                            "assistant_message": "I can give better recommendations with a bit more context first.",
+                            "derived_context": context,
+                            "recommendations": [],
+                            "follow_up_question": _follow_up_question(context),
+                        }
+                    ),
+                    200,
+                )
+
             # Search for candidate resources
             try:
                 candidates = search_resources(context, message)
-                logger.info(f"Found {len(candidates)} candidates for message: {message}")
+                logger.info("Found %s candidates for message: %s", len(candidates), message)
             except Exception as e:
                 logger.error("Failed to search resources: %s", e, exc_info=True)
                 # Return friendly response without database
@@ -474,7 +585,9 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
 
             # If no candidates found, return helpful message
             if not candidates:
-                logger.warning(f"No candidates found for message '{message}' with context {context}")
+                logger.warning(
+                    "No candidates found for message '%s' with context %s", message, context
+                )
                 return (
                     jsonify(
                         {
@@ -487,10 +600,21 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                     200,
                 )
             
-            logger.info(f"Processing {len(candidates)} candidates with LLM")
+            logger.info("Processing %s candidates with LLM", len(candidates))
+
+            telemetry = {
+                "candidate_count": len(candidates),
+                "blocked_count": 0,
+                "llm_timeout": False,
+                "fallback_used": False,
+                "validation_fail_reasons": [],
+            }
+
+            llm_started_at = time.monotonic()
+            llm_budget_seconds = BE016_TIMEOUT_BUDGET_MS / 1000.0
 
             # Try to use LLM
-            llm_client = get_llm_client()
+            llm_client = get_llm_client(timeout_seconds=llm_budget_seconds)
             use_llm = llm_client is not None
             
             if not use_llm:
@@ -502,28 +626,21 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                     llm_response = generate_llm_response(
                         message, context, candidates, llm_client
                     )
+
+                    elapsed = time.monotonic() - llm_started_at
+                    if elapsed > llm_budget_seconds:
+                        telemetry["llm_timeout"] = True
+                        raise TimeoutError("LLM+validation exceeded timeout budget")
+
                     logger.info("LLM response generated successfully")
 
-                    # Enrich recommendations with full resource data
-                    resource_map = {r.id: r for r in candidates}
-                    enriched_recommendations = []
-
-                    for rec in llm_response.get("recommendations", [])[:5]:
-                        resource_id = rec.get("id")
-                        if resource_id and resource_id in resource_map:
-                            resource = resource_map[resource_id]
-                            enriched_recommendations.append(
-                                {
-                                    "id": resource.id,
-                                    "title": resource.title or "",
-                                    "description": resource.description or "",
-                                    "rationale": rec.get("rationale", ""),
-                                    "url": resource.link or "",
-                                    "topics": resource.topics or "",
-                                    "industries": resource.industries or "",
-                                    "communities": resource.communities or "",
-                                }
-                            )
+                    enriched_recommendations, validation_fail_reasons = (
+                        _validate_and_enrich_recommendations(
+                            llm_response.get("recommendations", []), candidates
+                        )
+                    )
+                    telemetry["validation_fail_reasons"] = validation_fail_reasons
+                    telemetry["blocked_count"] = len(validation_fail_reasons)
 
                     response_data = {
                         "assistant_message": llm_response.get("assistant_message", ""),
@@ -536,9 +653,23 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                             "follow_up_question"
                         ]
 
+                    if _is_validation_debug_enabled():
+                        response_data["validation_debug"] = {
+                            "blocked_count": telemetry["blocked_count"],
+                            "validation_fail_reasons": telemetry[
+                                "validation_fail_reasons"
+                            ],
+                        }
+
+                    logger.info("navigator_be016 telemetry=%s", json.dumps(telemetry))
+
                     return jsonify(response_data), 200
 
                 except Exception as e:
+                    if isinstance(e, TimeoutError):
+                        telemetry["llm_timeout"] = True
+                    telemetry["fallback_used"] = True
+                    logger.info("navigator_be016 telemetry=%s", json.dumps(telemetry))
                     logger.error(
                         "LLM generation failed, falling back to deterministic: %s", e, exc_info=True
                     )
@@ -550,6 +681,8 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                     deterministic_response = generate_deterministic_response(
                         context, candidates
                     )
+                    telemetry["fallback_used"] = True
+                    logger.info("navigator_be016 telemetry=%s", json.dumps(telemetry))
                     return jsonify(deterministic_response), 200
                 except Exception as e:
                     logger.error("Deterministic fallback failed: %s", e, exc_info=True)

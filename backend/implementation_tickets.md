@@ -110,6 +110,31 @@ Acceptance Criteria:
 3. URL and resource id validation prevent fabricated links or unknown programs in responses.
 4. Timeout/fallback path returns deterministic recommendations if LLM step fails.
 
+Implementation Defaults (Interviewed):
+1. Primary risk to prevent: fabricated recommendations (resource not in DB).
+2. Candidate set policy: deterministic retrieval plus light expansion (synonyms/tags), capped at top 20.
+3. Validation strictness: drop invalid items only (do not fail entire response if some items are valid).
+4. Identity policy: resource id is source of truth; title/url are display fields.
+5. URL policy: response URL must exactly match stored official URL.
+6. Timeout budget: 3000 ms total for LLM generation and safety validation.
+7. Fallback policy: return deterministic top-N with canned rationale text on LLM timeout/error.
+8. Sparse-context behavior: ask follow-up first, then provide recommendations.
+9. Debug transparency: include filtered-item reasons only in admin/debug mode.
+10. Rollout: enabled by default (no feature flag for initial release).
+
+Required Telemetry:
+1. candidate_count
+2. blocked_count
+3. llm_timeout
+4. fallback_used
+5. validation_fail_reasons
+
+Minimum Test Bar (Current Decision):
+1. Adversarial hallucination tests that verify out-of-candidate resources and fabricated URLs are filtered.
+
+Definition of Done (Current Decision):
+1. BE-016 acceptance criteria pass.
+
 ## P1 Hardening
 
 ### BE-011 Auth and authorization
