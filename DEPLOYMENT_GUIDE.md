@@ -40,31 +40,13 @@ All backend routes are prefixed with `/api`:
 4. Add environment variables (if any)
 5. Deploy
 
-### 3. Update Frontend Configuration
-
-Edit `/vercel.json` in the root and replace `"your-backend-project.vercel.app"` with your actual backend Vercel URL:
-
-```json
-{
-    "buildCommand": "npm run build",
-    "outputDirectory": "./.next",
-    "framework": "nextjs",
-    "rewrites": [
-        {
-            "source": "/api/:path*",
-            "destination": "https://YOUR-ACTUAL-BACKEND-URL.vercel.app/api/:path*"
-        }
-    ]
-}
-```
-
-### 4. Assign Your Custom Domain
+### 3. Assign Your Custom Domain
 
 1. Go to your frontend project settings
 2. Navigate to **Domains**
 3. Add your custom domain (e.g., `yourdomain.com`)
 
-### 5. Configure CORS (Backend)
+### 4. Configure CORS (Backend)
 
 Ensure your Flask backend allows requests from your frontend domain. Check `app/config.py` or wherever CORS is configured.
 
@@ -78,15 +60,12 @@ cd backend
 source .venv/bin/activate
 flask run
 
-# Frontend (configured to call http://127.0.0.1:5000/api/*)
+# Frontend (Next.js rewrites proxy /api/* to backend)
 cd frontend
 npm run dev
 ```
 
-The frontend's `.env.local` file should have:
-```
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:5000/api
-```
+**No environment variables needed!** Next.js rewrites in `next.config.mjs` automatically proxy `/api/*` to `http://127.0.0.1:5000/api/*` during development.
 
 ## Troubleshooting
 
@@ -96,8 +75,11 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:5000/api
   - Check that rewrite destination includes `/api/:path*`
 - **CORS errors**: Update CORS settings in backend to allow your frontend domain
 - **Build failures**: Check build logs in Vercel dashboard
-- **Environment variables**: Ensure they're set in both projects on Vercel
-- **Local dev 404s**: Make sure `NEXT_PUBLIC_API_BASE_URL` includes `/api` suffix
+- **Environment variables**: Ensure they're set in both projects on Vercel (backend needs Supabase vars)
+- **Local dev issues**: 
+  - Ensure backend is running on port 5000
+  - Check `next.config.mjs` rewrites point to correct backend URL
+  - Frontend always uses relative `/api/*` paths
 
 ## Git Workflow
 

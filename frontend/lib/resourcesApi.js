@@ -1,8 +1,4 @@
-const DEFAULT_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
-function normalizeBaseUrl(baseUrl) {
-  return (baseUrl || "").replace(/\/$/, "");
-}
+// Always use relative paths - Next.js rewrites handle routing
 
 function isNullableString(value) {
   return typeof value === "string" || value === null;
@@ -66,8 +62,7 @@ function buildResourcesUrl({
   page = 1,
   perPage = 6,
 }) {
-  const baseUrl = normalizeBaseUrl(DEFAULT_API_BASE_URL);
-  const url = new URL(`${baseUrl}/resources`);
+  const url = new URL("/api/resources", window.location.origin);
 
   url.searchParams.set("page", String(page));
   url.searchParams.set("per_page", String(perPage));

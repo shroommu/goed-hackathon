@@ -1,8 +1,4 @@
-const DEFAULT_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-
-function normalizeBaseUrl(baseUrl) {
-  return (baseUrl || "").replace(/\/$/, "");
-}
+// Always use relative paths - Next.js rewrites handle routing
 
 function isNullableString(value) {
   return typeof value === "string" || value === null;
@@ -115,8 +111,7 @@ function isValidCompanyDetailResponse(payload) {
 }
 
 function buildCompaniesUrl(filters = {}) {
-  const baseUrl = normalizeBaseUrl(DEFAULT_API_BASE_URL);
-  const url = new URL(`${baseUrl}/companies`);
+  const url = new URL("/api/companies", window.location.origin);
 
   url.searchParams.set("page", "1");
   url.searchParams.set("per_page", "100");
@@ -141,8 +136,7 @@ function buildCompaniesUrl(filters = {}) {
 }
 
 function buildCompanyDetailUrl(companyId) {
-  const baseUrl = normalizeBaseUrl(DEFAULT_API_BASE_URL);
-  return new URL(`${baseUrl}/companies/${companyId}`);
+  return new URL(`/api/companies/${companyId}`, window.location.origin);
 }
 
 function emptyCompaniesPayload(filters = {}) {
