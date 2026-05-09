@@ -1,9 +1,4 @@
 {
-    "functions": {
-        "wsgi.py": {
-            "maxDuration": 60
-        }
-    },
     "builds": [
         {
             "src": "wsgi.py",
