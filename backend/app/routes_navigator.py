@@ -110,11 +110,28 @@ def search_resources(
     # Apply search conditions
     if search_conditions:
         query = query.filter(or_(*search_conditions))
+    else:
+        # If no search conditions, return random sampling of resources
+        # This prevents returning ALL resources
+        logger.info("No search conditions, will return general resources")
 
     # Execute query with limit
-    resources = query.limit(limit).all()
-
-    return resources
+    try:
+        resources = query.limit(limit).all()
+        logger.info(f"Query executed successfully, found {len(resources)} resources")
+        return resources
+    except Exception as e:
+        logger.error(f"Database query failed: {type(e).__name__}: {str(e)}", exc_info=True)
+        # Try a simpler query as fallback
+        try:
+            logger.info("Attempting fallback query")
+            from .extensions import db
+            simple_resources = db.session.query(Resource).filter_by(archived=False).limit(limit).all()
+            logger.info(f"Fallback query succeeded with {len(simple_resources)} resources")
+            return simple_resources
+        except Exception as fallback_error:
+            logger.error(f"Fallback query also failed: {fallback_error}", exc_info=True)
+            raise
 
 
 def get_llm_client() -> ChatOpenAI | None:
@@ -427,17 +444,16 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
             except Exception as e:
                 logger.error("Failed to search resources: %s", e, exc_info=True)
                 # Return deterministic response without database
-                error_msg = "I'm here to help you find entrepreneurship resources. Could you tell me more about what you're looking for?"
-                if current_app.config.get("DEBUG"):
-                    error_msg = f"Database error: {type(e).__name__}: {str(e)}"
+                # Temporarily show error even in production for debugging
+                error_details = f"{type(e).__name__}: {str(e)}"
                 return (
                     jsonify(
                         {
-                            "assistant_message": error_msg,
+                            "assistant_message": "I'm experiencing technical difficulties searching the database. Please try again in a moment.",
                             "derived_context": context,
                             "recommendations": [],
                             "follow_up_question": "What type of support are you looking for?",
-                            "debug_error": str(e) if current_app.config.get("DEBUG") else None,
+                            "debug_error": error_details,  # Temporarily show in production
                         }
                     ),
                     200,
