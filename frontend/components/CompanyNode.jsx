@@ -61,13 +61,13 @@ export default function CompanyNode({
         })}
       >
         <Typography
-          sx={{
+          sx={(theme) => ({
             fontSize: radius * 0.8,
-            color: "#0b1120",
+            color: theme.palette.getContrastText(bgColor),
             fontWeight: "bold",
             userSelect: "none",
-            pointerEvents: "none"
-          }}
+            pointerEvents: "none",
+          })}
         >
           {firstLetter}
         </Typography>

@@ -2,7 +2,8 @@
 
 import SiteShell from "@/components/SiteShell";
 import ChatInterface from "@/components/ChatInterface";
-import { Box, Typography } from "@mui/material";
+import { Box, Link as MuiLink, Stack, Typography } from "@mui/material";
+import Link from "next/link";
 
 /**
  * Navigator page with conversational AI interface (FE-013)
@@ -34,6 +35,23 @@ export default function NavigatorPage() {
       <Box sx={{ mt: 4 }}>
         <ChatInterface />
       </Box>
+
+      <Stack
+        direction="row"
+        justifyContent="flex-end"
+        sx={{ mt: 2 }}
+      >
+        <MuiLink
+          component={Link}
+          href="/navigator/validate"
+          variant="caption"
+          color="text.secondary"
+          underline="hover"
+          aria-label="Open the persona validation harness"
+        >
+          Persona validation harness →
+        </MuiLink>
+      </Stack>
     </SiteShell>
   );
 }

@@ -7,29 +7,22 @@ import { useEffect, useRef, useMemo, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import MarkerClusterGroup from "@changey/react-leaflet-markercluster";
 import L from "leaflet";
+import {
+  COMPANY_ACCENT_COLORS,
+  letterColorOnAccent,
+} from "@/lib/companyAccentColors";
 
 // Create custom marker icon with colored letter
 function createCompanyIcon(company) {
   // Get first letter of company name for the icon
-  const firstLetter = (company.startup_name || '?')[0].toUpperCase();
-  
-  // Generate a color based on the first letter for visual variety
-  const colorIndex = firstLetter.charCodeAt(0) % 10;
-  const colors = [
-    "#38bdf8",
-    "#22d3ee",
-    "#34d399",
-    "#0ea5e9",
-    "#2dd4bf",
-    "#10b981",
-    "#0284c7",
-    "#14b8a6",
-    "#059669",
-    "#06b6d4"
-  ];
-  const bgColor = colors[colorIndex];
-  
-  const iconHtml = `<div style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #0b1120; box-shadow: 0 2px 8px rgba(0,0,0,0.45); background: ${bgColor}; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #0b1120; font-weight: bold;">
+  const firstLetter = (company.startup_name || "?")[0].toUpperCase();
+
+  const colorIndex =
+    firstLetter.charCodeAt(0) % COMPANY_ACCENT_COLORS.length;
+  const bgColor = COMPANY_ACCENT_COLORS[colorIndex];
+  const fgColor = letterColorOnAccent(bgColor);
+
+  const iconHtml = `<div style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #0a0f1e; box-shadow: 0 2px 8px rgba(0,0,0,0.45); background: ${bgColor}; display: flex; align-items: center; justify-content: center; font-size: 18px; color: ${fgColor}; font-weight: bold;">
        ${firstLetter}
      </div>`;
   

@@ -7,6 +7,7 @@ import {
   forceY,
 } from "d3-force";
 import { scaleLinear, scaleSqrt } from "d3-scale";
+import { COMPANY_ACCENT_COLORS } from "@/lib/companyAccentColors";
 
 // Configuration constants
 const BUBBLE_MIN_RADIUS = 40;
@@ -337,20 +338,8 @@ export function createCompanySimulation(
  */
 export function getCompanyColor(companyName) {
   const firstLetter = (companyName || "?")[0].toUpperCase();
-  const colorIndex = firstLetter.charCodeAt(0) % 10;
-  const colors = [
-    "#38bdf8",
-    "#22d3ee",
-    "#34d399",
-    "#0ea5e9",
-    "#2dd4bf",
-    "#10b981",
-    "#0284c7",
-    "#14b8a6",
-    "#059669",
-    "#06b6d4",
-  ];
-  return colors[colorIndex];
+  const colorIndex = firstLetter.charCodeAt(0) % COMPANY_ACCENT_COLORS.length;
+  return COMPANY_ACCENT_COLORS[colorIndex];
 }
 
 /**
