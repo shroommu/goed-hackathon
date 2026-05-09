@@ -267,6 +267,17 @@ Remember: Only recommend resources from this candidate list. Include the exact r
             content = content.split("```")[1].split("```")[0].strip()
 
         parsed_response = json.loads(content)
+        
+        # Validate required fields
+        if not isinstance(parsed_response, dict):
+            raise ValueError("LLM response must be a JSON object")
+        if "assistant_message" not in parsed_response:
+            parsed_response["assistant_message"] = "Here are some resources that might help you:"
+        if "derived_context" not in parsed_response:
+            parsed_response["derived_context"] = context
+        if "recommendations" not in parsed_response:
+            parsed_response["recommendations"] = []
+            
         return parsed_response
 
     except json.JSONDecodeError as e:
@@ -408,7 +419,22 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
                     context[field] = [context[field]]
 
             # Search for candidate resources
-            candidates = search_resources(context, message)
+            try:
+                candidates = search_resources(context, message)
+            except Exception as e:
+                logger.error("Failed to search resources: %s", e, exc_info=True)
+                # Return deterministic response without database
+                return (
+                    jsonify(
+                        {
+                            "assistant_message": "I'm here to help you find entrepreneurship resources. Could you tell me more about what you're looking for? For example, are you seeking funding, mentorship, training programs, or networking opportunities?",
+                            "derived_context": context,
+                            "recommendations": [],
+                            "follow_up_question": "What type of support are you looking for?",
+                        }
+                    ),
+                    200,
+                )
 
             # If no candidates found, return helpful message
             if not candidates:
@@ -476,15 +502,33 @@ def register_navigator_routes(blueprint: Blueprint) -> None:
 
             # Fallback to deterministic response
             if not use_llm:
-                deterministic_response = generate_deterministic_response(
-                    context, candidates
-                )
-                return jsonify(deterministic_response), 200
+                try:
+                    deterministic_response = generate_deterministic_response(
+                        context, candidates
+                    )
+                    return jsonify(deterministic_response), 200
+                except Exception as e:
+                    logger.error("Deterministic fallback failed: %s", e, exc_info=True)
+                    # Ultimate fallback - return minimal response
+                    return (
+                        jsonify(
+                            {
+                                "assistant_message": "I found some resources that might be helpful. Let me know if you'd like more specific recommendations!",
+                                "derived_context": context,
+                                "recommendations": [],
+                            }
+                        ),
+                        200,
+                    )
 
         except Exception as e:
             logger.exception("Unexpected error in chat_message endpoint: %s", e)
+            # Include error type in response for debugging
+            error_msg = "An unexpected error occurred"
+            if current_app.config.get("DEBUG"):
+                error_msg = f"{error_msg}: {type(e).__name__}: {str(e)}"
             return _error_response(
                 500,
                 "internal_error",
-                "An unexpected error occurred",
+                error_msg,
             )
