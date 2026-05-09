@@ -20,10 +20,10 @@ import Link from "next/link";
 import { useState } from "react";
 
 const navLinks = [
-  { href: "/navigator", label: "Resource Navigator" },
-  { href: "/map", label: "Startup Map" },
-  { href: "#how-it-works", label: "How it works" },
-  { href: "#get-started", label: "Choose mode" }
+  { href: "/navigator", label: "Start Your Journey" },
+  { href: "/map", label: "Explore Ecosystem" },
+  { href: "#how-it-works", label: "Resources" },
+  { href: "#get-started", label: "Get Started" }
 ];
 
 export default function SiteShell({ children }) {
@@ -47,7 +47,7 @@ export default function SiteShell({ children }) {
               component={Link}
               href="/"
               underline="none"
-              aria-label="GOED home"
+              aria-label="Utah Startup State home"
               sx={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -70,10 +70,10 @@ export default function SiteShell({ children }) {
                   fontWeight: 700
                 }}
               >
-                G
+                U
               </Box>
               <Typography fontWeight={700} letterSpacing="0.02em">
-                GOED Navigator
+                Utah Startup State
               </Typography>
             </MuiLink>
 
@@ -133,7 +133,7 @@ export default function SiteShell({ children }) {
 
       <Box component="footer" sx={{ borderTop: "1px solid #d7d2c7" }}>
         <Container maxWidth="lg" sx={{ py: 3, color: "text.secondary", fontSize: "0.9rem" }}>
-          <Typography variant="body2">Built for Utah startup discovery and resource navigation.</Typography>
+          <Typography variant="body2">Governor&rsquo;s Office of Economic Opportunity &mdash; Empowering Utah&rsquo;s entrepreneurs and the Startup Capital of the World.</Typography>
         </Container>
       </Box>
     </>

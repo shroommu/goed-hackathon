@@ -16,18 +16,18 @@ export default function NavigatorPage() {
           variant="overline"
           sx={{ letterSpacing: "0.08em", fontWeight: 700, color: "text.secondary" }}
         >
-          Guided Resource Match
+          Utah's Startup State — Your Journey Starts Here
         </Typography>
         <Typography
           id="navigator-title"
           variant="h1"
           sx={{ mt: 1, mb: 2, fontSize: { xs: "2rem", md: "3rem" } }}
         >
-          Tell us your startup goals and get personalized next steps.
+          Find the right resources for where you are today.
         </Typography>
         <Typography variant="body1" sx={{ color: "text.secondary" }}>
-          Share your stage, needs, and constraints. The assistant recommends relevant programs,
-          funding, and ecosystem connections.
+          Share your stage, goals, and needs. The assistant connects you with relevant programs,
+          funding, and ecosystem partners from Utah's thriving entrepreneurial community.
         </Typography>
       </Box>
 

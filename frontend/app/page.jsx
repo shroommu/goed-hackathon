@@ -12,13 +12,13 @@ export default function HomePage() {
           variant="overline"
           sx={{ letterSpacing: "0.08em", fontWeight: 700, color: "text.secondary" }}
         >
-          Utah startup launchpad
+          Welcome to the Startup Capital of the World
         </Typography>
         <Typography id="hero-title" variant="h1" sx={{ mt: 1, mb: 2, fontSize: { xs: "2rem", md: "3.4rem" }, textWrap: "balance" }}>
-          Choose your path in seconds: guided support or ecosystem map.
+          Start Something Here.
         </Typography>
         <Typography variant="body1" sx={{ color: "text.secondary", fontSize: { xs: "1rem", md: "1.2rem" } }} gutterBottom>
-          GOED helps users and investors quickly find the right next move with personalized resources and a live view of Utah startups.
+          Be a part of Utah's thriving startup scene. Start, grow, and build your business with personalized resources from the Governor's Office of Economic Opportunity.
         </Typography>
       </Box>
 
@@ -36,7 +36,7 @@ export default function HomePage() {
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
             <Chip label="Entrepreneurs" color="primary" size="small" />
             <Typography id="entrepreneur-header" variant="h2" sx={{ fontSize: "1.3rem" }}>
-              Build your company with guided support
+              Start, grow, or fund your business
             </Typography>
           </Stack>
           <Card>
@@ -45,7 +45,7 @@ export default function HomePage() {
                 Resource Navigator
               </Typography>
               <Typography color="text.secondary" sx={{ mb: 2 }}>
-                Share your goals and focus. Get ranked resources with clear reasons and next steps.
+                Tell us where you are in your journey. Get matched with ranked programs, funding, and ecosystem connections tailored to your stage.
               </Typography>
               <Button
                 component={Link}
@@ -55,7 +55,7 @@ export default function HomePage() {
                 size="large"
                 fullWidth
               >
-                Start navigator
+                Start your journey
               </Button>
             </CardContent>
           </Card>
@@ -74,7 +74,7 @@ export default function HomePage() {
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
             <Chip label="Investors" color="default" size="small" />
             <Typography id="investor-header" variant="h2" sx={{ fontSize: "1.3rem" }}>
-              Discover Utah startups and investment signals
+              Explore Utah's thriving startup ecosystem
             </Typography>
           </Stack>
           <Card>
@@ -83,7 +83,7 @@ export default function HomePage() {
                 Utah Startup Map
               </Typography>
               <Typography color="text.secondary" sx={{ mb: 2 }}>
-                Browse companies by sector, stage, and hiring signals to explore opportunity clusters fast.
+                Browse Utah's fastest-growing companies by sector and stage. Find opportunity clusters and build connections in the Startup Capital of the World.
               </Typography>
               <Button
                 component={Link}
@@ -93,7 +93,7 @@ export default function HomePage() {
                 size="large"
                 fullWidth
               >
-                Explore map flow
+                Explore the ecosystem
               </Button>
             </CardContent>
           </Card>
@@ -114,30 +114,30 @@ export default function HomePage() {
         <Card>
           <CardContent sx={{ p: 3 }}>
             <Typography variant="h2" sx={{ mb: 1, fontSize: "1.4rem" }}>
-              Tell us your stage
+              Starting a Business
             </Typography>
             <Typography color="text.secondary">
-              Share what you are building, your traction, and what support you need right now.
+              Utah provides fertile soil for innovators. Share your idea and get a clear path to launching your business.
             </Typography>
           </CardContent>
         </Card>
         <Card>
           <CardContent sx={{ p: 3 }}>
             <Typography variant="h2" sx={{ mb: 1, fontSize: "1.4rem" }}>
-              Get matched
+              Grow Your Business
             </Typography>
             <Typography color="text.secondary">
-              Receive recommendations that explain why each program is a fit.
+              Access programs, mentors, and networks tailored to your stage — whether you're early or scaling fast.
             </Typography>
           </CardContent>
         </Card>
         <Card id="why-goed">
           <CardContent sx={{ p: 3 }}>
             <Typography variant="h2" sx={{ mb: 1, fontSize: "1.4rem" }}>
-              Take action
+              Get Funding
             </Typography>
             <Typography color="text.secondary">
-              Move from discovery to outreach with direct links and clear next actions.
+              Discover funding opportunities, grants, and investors that champion Utah's entrepreneurial spirit.
             </Typography>
           </CardContent>
         </Card>
